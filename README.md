@@ -34,6 +34,10 @@ or
 $ THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python cfrbm/user_based.py ubased.json
 ```
 
+# License
+
+Mit. See `LICENSE` file
+
 # Informal references
 
 * http://stats.stackexchange.com/questions/191918/predicting-with-restricted-boltzmann-machines-for-collaborative-filtering/192829#192829
