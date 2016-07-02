@@ -2,6 +2,10 @@
 
 This is an implementation of the RBM model for the collaborative filtering task.
 
+## Limitation
+
+This code works, so far, only with ratings from 1 to 5.
+
 ## Dependencies
 
 This library relies on Theano.
@@ -29,3 +33,5 @@ or
 ```
 $ THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python cfrbm/user_based.py ubased.json
 ```
+
+
