@@ -34,6 +34,11 @@ or
 $ THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python cfrbm/user_based.py ubased.json
 ```
 
+# Informal references
+
+* http://stats.stackexchange.com/questions/191918/predicting-with-restricted-boltzmann-machines-for-collaborative-filtering/192829#192829
+
+
 ## References
 
 * Ruslan Salakhutdinov, Andriy Mnih e Geoffrey Hinton. “Restricted Boltzmann machines for collaborative filtering”. Em: In Machine Learning, Proceedings of the Twenty-fourth International Conference (ICML 2004). ACM. AAAI Press, 2007, pp. 791–798.
