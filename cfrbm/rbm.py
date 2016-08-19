@@ -85,11 +85,13 @@ class CFRBM:
             activations.reshape((-1, k)).sum(axis=1).reshape((-1, 1)) * k_ones
 
         activations = activations / partitions.reshape(activations.shape)
-        v1_sample = self.theano_rng.binomial(size=activations.shape,
-                                             n=1, p=activations,
-                                             dtype=theano.config.floatX)
 
-        return v1_sample, activations
+        original_shape = activations.shape
+
+        v1_sample = self.theano_rng.multinomial(
+            n=1, pvals=activations.reshape((-1, k)))
+
+        return v1_sample.reshape(original_shape), activations
 
     def contrastive_divergence_1(self, v1):
         h1, _ = self.sample_hidden(v1)
