@@ -1,6 +1,12 @@
 # CFRBM
 
-This is an implementation of the RBM model for the collaborative filtering task.
+This is an implementation of the RBM model for the collaborative filtering task. It follows the following paper: [Restricted Boltzmann machines for collaborative filtering](https://www.cs.toronto.edu/~rsalakhu/papers/rbmcf.pdf).
+
+## Requirements
+* Python 2.7
+* Theano
+* CUDA
+* Anaconda 
 
 ## Limitation
 
