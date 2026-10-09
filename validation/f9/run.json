@@ -1,0 +1,40 @@
+{
+  "source_commit": "3c7ff966b2f612a992633738e9ffcbad53f81d15",
+  "started_at": "2026-10-09T22:58:31.699181+00:00",
+  "platform": "macOS-27.0.1-arm64-arm-64bit",
+  "python": "3.12.2",
+  "numpy": "2.5.3",
+  "torch": "2.14.1",
+  "device": "cpu",
+  "numpy_seed": 17,
+  "torch_sampling_seed": 17,
+  "environment": {
+    "PYTHONHASHSEED": "17",
+    "OMP_NUM_THREADS": "1",
+    "MKL_NUM_THREADS": "1"
+  },
+  "command": [
+    ".venv/bin/python",
+    "-u",
+    "-c",
+    "import runpy, sys, numpy as np; np.random.seed(17); sys.argv = [\"cfrbm.user_based\", \"ubased.json\", \"--device\", \"cpu\"]; runpy.run_module(\"cfrbm.user_based\", run_name=\"__main__\")"
+  ],
+  "sha256": {
+    "ubased.json": "215cc9353bac5ae3c8aa585a0c0d880f03d693eba0891587ddc9648ea8747f1c",
+    "ml-100k/u1.base": "ce253ec86c448b44fb3ba9a30d12dcfc2e9210cbde71efada3730c22e9ac212a",
+    "ml-100k/u1.test": "18c6014a4b2c7324f250a63f8904a7b16b2b19f911129e346141507b0cbac950"
+  },
+  "evaluation": {
+    "train_ratings": 80000,
+    "train_users": 943,
+    "train_movies": 1650,
+    "test_ratings": 20000,
+    "scored_ratings": 19837,
+    "skipped_ratings": 163,
+    "unknown_movie_ratings": 32,
+    "rounded_predictions": true
+  },
+  "exit_code": 0,
+  "elapsed_seconds": 774.9265135839814,
+  "finished_at": "2026-10-09T23:11:26.659089+00:00"
+}
