@@ -116,7 +116,21 @@ Planned. Replace Theano with PyTorch and keep the training behavior the same. Ex
   | Limitation | Validation uses small synthetic experiments; full MovieLens accuracy and runtime remain part of F9. README and Makefile retain legacy launch instructions pending F8. |
   | Next step | Run tests.test_device on a CUDA host, including an explicit cuda:index override on a multi-GPU system. |
 
-- [ ] **F8 — Update call sites, Makefile and README.** Remove `theano.tensor` from `cfrbm/user_based.py` and `cfrbm/item_based.py`, and convert batches with `torch.from_numpy(...).to(device)` and `.cpu().numpy()`. Replace `THEANO_FLAGS` in the `Makefile` and README with the new run command and dependencies. Acceptance: `grep -ri theano` finds nothing, and `make run` starts training. Depends on F6 and F7.
+- [x] **F8 — Update call sites, Makefile and README.** Remove `theano.tensor` from `cfrbm/user_based.py` and `cfrbm/item_based.py`, and convert batches with `torch.from_numpy(...).to(device)` and `.cpu().numpy()`. Replace `THEANO_FLAGS` in the `Makefile` and README with the new run command and dependencies. Acceptance: `grep -ri theano` finds nothing, and `make run` starts training. Depends on F6 and F7.
+
+  | Item | Content |
+  | --- | --- |
+  | Status | Done |
+  | Timestamp | 2026-10-10 |
+  | Complexity | M |
+  | Details | Clear implementation scope; estimated and changed five implementation files across launch commands, documentation and obsolete backend references, plus tracking. F6/F7 already supply both runners' tensor conversions and numpy/torch dependencies. Make targets now use PyTorch module execution with PYTHON/DEVICE overrides; README covers environment setup, dataset extraction and both CLIs. Removed the obsolete parity skip gate. |
+  | Commit | `384f761327d6da072d78b7b765b9669f7243c80a` — implements F8. |
+  | Validation | Python 3.12.2 / PyTorch 2.14.1: make test ran 29 tests, 27 passed and 2 accelerator checks skipped; includes both CLI integrations and all 8 parity checks. Default make run with activated .venv completed MovieLens epoch 0 on CPU, wrote JSON, MAE 0.931794 and RMSE 1.187261, then was intentionally stopped. Scoped backend-reference search, roadmap validator and git diff --check passed. |
+  | Limitation | Literal unrestricted grep still matches preserved roadmap history, prior job notes and environment/Git artifacts. Zero matches verified in tracked application code, tests, Makefile, README and requirements; preserving unrelated history takes precedence over erasing these records. |
+  | Limitation | CUDA and MPS were unavailable inside this sandbox; accelerator execution was not revalidated for F8. |
+  | Limitation | Only the first default MovieLens epoch was validated; 100-epoch completion and final accuracy remain unverified. |
+  | Next step | Execute F9's full 100-epoch MovieLens experiment and record per-epoch metrics and final results JSON. |
+
 - [ ] **F9 — End-to-end validation on ml-100k.** Run the `ubased.json` experiment and record the per-epoch MAE/RMSE output. Acceptance: training finishes all 100 epochs, RMSE ends up roughly in the 0.95–1.0 range, and the results JSON is written. Depends on F8.
 
 ## v1.1 — Training correctness and speed
