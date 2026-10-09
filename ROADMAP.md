@@ -56,7 +56,19 @@ Planned. Port the code to Python 3 without touching Theano or the model math, in
 
 Planned. Add tests of the current RBM math so the PyTorch rewrite can be checked against it. Theano cannot run on Python 3.12, so the reference is a NumPy implementation, not the old code. Exit criterion: the reference tests pass and document the current update rule, quirks included. Depends on F1.
 
-- [ ] **F4 — NumPy reference implementation of the CD math.** In `tests/`, write a reference for `prop_up`, `prop_down`, the 5-way normalization in `sample_visible`, `gradient`, and one parameter update with momentum and weight decay. Copy `cfrbm/rbm.py` exactly, including the quirks fixed later in F10–F12. Acceptance: the reference functions take fixed weights and fixed binary samples and return deterministic outputs.
+- [x] **F4 — NumPy reference implementation of the CD math.** In `tests/`, write a reference for `prop_up`, `prop_down`, the 5-way normalization in `sample_visible`, `gradient`, and one parameter update with momentum and weight decay. Copy `cfrbm/rbm.py` exactly, including the quirks fixed later in F10–F12. Acceptance: the reference functions take fixed weights and fixed binary samples and return deterministic outputs.
+
+  | Item | Content |
+  | --- | --- |
+  | Status | Done |
+  | Timestamp | 2026-10-10 |
+  | Complexity | M |
+  | Details | Clear math scope; estimated and changed two test files across a NumPy reference and deterministic regression tests, plus tracking. Resolved sampling ambiguity with supplied binary visible samples. Added propagation, grouped sigmoid normalization, masked gradients and simultaneous float32 updates; preserved raw-gradient momentum, the negative-phase h1 factor and non-one-hot samples. |
+  | Commit | `8a86d6d5e67fbc26cee2767691316296e2c6fc3a` — implements F4. |
+  | Validation | Python 3.12.2: make test passed all 9 tests, including 5 new hand-calculated regression tests covering propagation, two rating groups per user, masks, momentum, decay, defaults, deterministic updates and unchanged inputs. Roadmap validator and git diff --check passed. |
+  | Limitation | Reference accepts fixed samples and does not reproduce random-number streams; live Theano numerical parity remains unverified on Python 3.12. |
+  | Next step | In F5, compare the backend against these reference functions using fixed inputs and samples. |
+
 - [ ] **F5 — Parity test harness.** Add `tests/test_rbm.py`, which compares an RBM implementation against the F4 reference using `allclose` on fixed inputs and fixed samples, so no random-number matching is needed. Acceptance: the harness is ready to target the v1.0 PyTorch `CFRBM`. Depends on F4.
 
 ## v1.0 — PyTorch backend
