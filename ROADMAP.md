@@ -87,7 +87,20 @@ Planned. Add tests of the current RBM math so the PyTorch rewrite can be checked
 
 Planned. Replace Theano with PyTorch and keep the training behavior the same. Exit criterion: the parity tests pass, Theano is gone from code and docs, and the ml-100k `u1` experiment trains to an RMSE of roughly 0.95–1.0. Depends on F3 and F5.
 
-- [ ] **F6 — Rewrite `cfrbm/rbm.py` in PyTorch.** Keep the `CFRBM` constructor, including `.npy` weight loading, and keep the current `normal(0, 0.1)` weight init and seed 17. `cdk_fun(...)` and `predict()` should still return callables. Use `torch.bernoulli` with a seeded `torch.Generator`, and do the parameter updates in place under `torch.no_grad()`. Compute `gradient` with matrix multiplies, `(v1*m).T @ h1 - (v2*m).T @ (h2p*h1)`, instead of building the batch × visible × hidden `outer` tensor. Acceptance: the F5 parity tests pass.
+- [x] **F6 — Rewrite `cfrbm/rbm.py` in PyTorch.** Keep the `CFRBM` constructor, including `.npy` weight loading, and keep the current `normal(0, 0.1)` weight init and seed 17. `cdk_fun(...)` and `predict()` should still return callables. Use `torch.bernoulli` with a seeded `torch.Generator`, and do the parameter updates in place under `torch.no_grad()`. Compute `gradient` with matrix multiplies, `(v1*m).T @ h1 - (v2*m).T @ (h2p*h1)`, instead of building the batch × visible × hidden `outer` tensor. Acceptance: the F5 parity tests pass.
+
+  | Item | Content |
+  | --- | --- |
+  | Status | Done |
+  | Timestamp | 2026-10-10 |
+  | Complexity | M |
+  | Details | Clear math scope; estimated and changed three implementation files across backend, dependencies and tests, plus tracking. Preserved NumPy normal(0, 0.1) initialization, constructor and checkpoint suffixes, callable factories and legacy CD-k final-transition math. Sampling uses a local torch.Generator seeded with 17; matrix-multiply gradients and in-place no-grad updates retain F10-F12 quirks. requirements.txt now declares torch. |
+  | Commit | `d32402c155c02b3c3255e4436eb648f10c3c6d47` — implements F6. |
+  | Validation | Python 3.12.2 / PyTorch 2.14.1 CPU: make test passed all 22 tests without skips, including all 8 unchanged F5 parity cases and 5 new backend checks. Real-sampling CD-3 training/prediction smoke passed. Roadmap validator and git diff --check passed. |
+  | Limitation | CPU float32 tensors only; accelerator selection and full runner integration remain unverified and are scheduled in F7-F9. Legacy runners still import Theano. |
+  | Limitation | Seed 17 controls sampling; initialization retains NumPy's global RNG. PyTorch random streams do not reproduce Theano draws; debug is accepted without compiler effects. |
+  | Next step | Implement F7 device selection and F8 tensor conversion in both runners, update launch documentation, then execute F9 end-to-end validation. |
+
 - [ ] **F7 — Device selection.** Pick CUDA, then MPS, then CPU automatically, and allow an override with a `--device` CLI option. Acceptance: training runs on CPU and on at least one available accelerator. Depends on F6.
 - [ ] **F8 — Update call sites, Makefile and README.** Remove `theano.tensor` from `cfrbm/user_based.py` and `cfrbm/item_based.py`, and convert batches with `torch.from_numpy(...).to(device)` and `.cpu().numpy()`. Replace `THEANO_FLAGS` in the `Makefile` and README with the new run command and dependencies. Acceptance: `grep -ri theano` finds nothing, and `make run` starts training. Depends on F6 and F7.
 - [ ] **F9 — End-to-end validation on ml-100k.** Run the `ubased.json` experiment and record the per-epoch MAE/RMSE output. Acceptance: training finishes all 100 epochs, RMSE ends up roughly in the 0.95–1.0 range, and the results JSON is written. Depends on F8.
