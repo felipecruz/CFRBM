@@ -46,8 +46,8 @@ def run(name, dataset, config, all_users, all_movies, tests, initial_v, sep):
 
     for j in range(epochs):
         def get_index(col):
-            if j/(epochs/len(col)) < len(col):
-                return j/(epochs/len(col))
+            if j // (epochs // len(col)) < len(col):
+                return j // (epochs // len(col))
             else:
                 return -1
 

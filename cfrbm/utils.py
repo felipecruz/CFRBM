@@ -5,7 +5,7 @@ iteration_str = "\nEnd iter {} - k/lr: {}/{} momentum: {} - MAE/RMSE: {}/{}"
 
 
 def chunker(seq, size):
-    return (seq[pos:pos + size] for pos in xrange(0, len(seq), size))
+    return (seq[pos:pos + size] for pos in range(0, len(seq), size))
 
 
 def avg(x):
@@ -38,4 +38,4 @@ def revert_expected_value(m, k=5, do_round=True):
     else:
         users = (m.reshape(-1, k) * mask).sum(axis=1)
 
-    return np.array(users).reshape(m.shape[0], m.shape[1] / k)
+    return np.array(users).reshape(m.shape[0], m.shape[1] // k)
