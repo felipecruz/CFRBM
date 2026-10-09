@@ -25,7 +25,19 @@ Planned. Port the code to Python 3 without touching Theano or the model math, in
   | Limitation | Runner dictionary-key views remain incompatible with chunker's sequence slicing on Python 3. |
   | Next step | Convert runner key views to sliceable sequences or adapt chunker before validating full Python 3 training. |
 
-- [ ] **F2 — Fix item-based experiment loading.** `cfrbm/item_based.py:172` treats the result of `read_experiment()` as a dict, but it returns a list. Loop over the experiments the way `cfrbm/user_based.py` does. Acceptance: `item_based` reads `ubased.json` without a `TypeError`.
+- [x] **F2 — Fix item-based experiment loading.** `cfrbm/item_based.py:172` treats the result of `read_experiment()` as a dict, but it returns a list. Loop over the experiments the way `cfrbm/user_based.py` does. Acceptance: `item_based` reads `ubased.json` without a `TypeError`.
+
+  | Item | Content |
+  | --- | --- |
+  | Status | Done |
+  | Timestamp | 2026-10-10 |
+  | Complexity | S |
+  | Details | Clear specification with no ambiguities; estimated one Python file in the item-based runner, plus roadmap tracking. The runner now loops over experiments and their configurations like user_based, retaining item-based dataset orientation. |
+  | Commit | `2988520d690d061e19c4007b96885482593187bc` — implements F2. |
+  | Validation | Python 3.12.2: isolated entry-point checks reproduced the original TypeError, then passed with the real ubased.json reader, multiple experiments/configurations, and an empty list; dataset loading and training were mocked. make test passed all 4 tests. Roadmap validator and git diff --check passed. |
+  | Limitation | Full CLI training remains unverified because of existing legacy Theano/import dependencies and Python 3 dictionary-key slicing issues. |
+  | Next step | After the existing dependency/import and key-view compatibility work, validate item-based training end to end. |
+
 - [ ] **F3 — Make the package importable and declare dependencies.** Switch to package-relative imports (`from .rbm import CFRBM`) so the scripts run as `python -m cfrbm.user_based`, and add a `requirements.txt` (numpy, and torch from v1.0 on). Acceptance: `python -m cfrbm.user_based ubased.json` gets past its imports, and the tests import `cfrbm.*` cleanly.
 
 ## v0.2 — Lock in current RBM behavior
