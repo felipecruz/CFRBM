@@ -101,7 +101,21 @@ Planned. Replace Theano with PyTorch and keep the training behavior the same. Ex
   | Limitation | Seed 17 controls sampling; initialization retains NumPy's global RNG. PyTorch random streams do not reproduce Theano draws; debug is accepted without compiler effects. |
   | Next step | Implement F7 device selection and F8 tensor conversion in both runners, update launch documentation, then execute F9 end-to-end validation. |
 
-- [ ] **F7 — Device selection.** Pick CUDA, then MPS, then CPU automatically, and allow an override with a `--device` CLI option. Acceptance: training runs on CPU and on at least one available accelerator. Depends on F6.
+- [x] **F7 — Device selection.** Pick CUDA, then MPS, then CPU automatically, and allow an override with a `--device` CLI option. Acceptance: training runs on CPU and on at least one available accelerator. Depends on F6.
+
+  | Item | Content |
+  | --- | --- |
+  | Status | Done |
+  | Timestamp | 2026-10-10 |
+  | Complexity | M |
+  | Details | Clear selection priority; estimated and changed seven code/test files across device resolution, RBM state and both CLIs. Resolved unspecified overrides as auto, cpu, mps and cuda[:index], with errors for unavailable devices. Parameters, momentum and seeded sampling use the selected device. Minimal F8 runner tensor conversion and Python 3 key-view fixes enable both CLIs. |
+  | Commit | `29695432f2ae77ec3b26818828711f117d0fc1aa` — implements F7. |
+  | Validation | Python 3.12.2 / PyTorch 2.14.1: make test passed 28 tests with CUDA alone skipped outside the sandbox. CPU and MPS CD-3 updates and prediction passed; both CLIs completed two-epoch synthetic experiments on CPU, MPS and auto with finite metrics and results JSON. All 8 F5 parity cases passed; device priority, invalid overrides and checkpoint placement checked. Roadmap validator and git diff --check passed. |
+  | Limitation | CUDA execution and indexed multi-GPU training are unverified because this host has no CUDA device; selection policy is covered with mocked availability. |
+  | Limitation | MPS is hidden by the execution sandbox on this host; real MPS validation required running outside it. Cross-device random streams are not guaranteed identical. |
+  | Limitation | Validation uses small synthetic experiments; full MovieLens accuracy and runtime remain part of F9. README and Makefile retain legacy launch instructions pending F8. |
+  | Next step | Run tests.test_device on a CUDA host, including an explicit cuda:index override on a multi-GPU system. |
+
 - [ ] **F8 — Update call sites, Makefile and README.** Remove `theano.tensor` from `cfrbm/user_based.py` and `cfrbm/item_based.py`, and convert batches with `torch.from_numpy(...).to(device)` and `.cpu().numpy()`. Replace `THEANO_FLAGS` in the `Makefile` and README with the new run command and dependencies. Acceptance: `grep -ri theano` finds nothing, and `make run` starts training. Depends on F6 and F7.
 - [ ] **F9 — End-to-end validation on ml-100k.** Run the `ubased.json` experiment and record the per-epoch MAE/RMSE output. Acceptance: training finishes all 100 epochs, RMSE ends up roughly in the 0.95–1.0 range, and the results JSON is written. Depends on F8.
 
