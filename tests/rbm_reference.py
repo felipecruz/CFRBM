@@ -1,7 +1,7 @@
 """Deterministic NumPy transcription of the legacy cfrbm/rbm.py math.
 
 This intentionally preserves the behavior preceding F10–F12. Supply binary
-samples explicitly; no random generator or Theano import is needed. Arrays use
+samples explicitly; no random generator or tensor backend is needed. Arrays use
 the same batch/visible/hidden axes as CFRBM. The update returns new parameters
 and gradient memory without mutating inputs, matching simultaneous shared updates.
 """

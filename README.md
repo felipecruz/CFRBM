@@ -8,38 +8,52 @@ This code works, so far, only with ratings from 1 to 5.
 
 ## Dependencies
 
-This library currently relies on NumPy and the legacy Theano backend.
+This library uses Python 3, NumPy and PyTorch. It has been tested with Python
+3.12. From the repository root, create and activate a virtual environment:
 
+```sh
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
 ```
-$ python -m pip install -r requirements.txt
-```
-
-The planned v1.0 migration will replace Theano with PyTorch (`torch`). The
-current backend is not compatible with the project's Python 3.12 environment;
-installing these dependencies alone does not resolve that compatibility issue.
 
 ## Test dataset
 
-You must download the `ml-100k` dataset to run the default experiment.
+Download and extract the `ml-100k` dataset in the repository root to run the
+default experiment. The configuration expects `ml-100k/u1.base` and
+`ml-100k/u1.test`:
 
-```
-$ wget http://files.grouplens.org/datasets/movielens/ml-100k.zip
+```sh
+curl -fLO https://files.grouplens.org/datasets/movielens/ml-100k.zip
+unzip ml-100k.zip
 ```
 
 ## Running
 
-```
-$ make run
+```sh
+make run
 ```
 
 or 
 
-```
-$ THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python -m cfrbm.user_based ubased.json
+```sh
+python -m cfrbm.user_based ubased.json
 ```
 
 Run these commands from the repository root. For item-based experiments, use
 `python -m cfrbm.item_based ubased.json`.
+
+Both runners automatically select CUDA, then Apple MPS, then CPU. To override
+this choice, append `--device cpu`, `--device mps`, or `--device cuda:0` to the
+module command, or use `make run DEVICE=cpu`. An unavailable device produces
+an error. To use the virtual environment without activating it, run
+`make run PYTHON=.venv/bin/python`.
+
+The default experiment runs for 100 epochs and writes per-epoch MAE/RMSE to
+`initial_experiment_100k-u1xu1.json` in the working directory. Repeating the
+experiment overwrites that results file.
+
+Run the tests with `make test` (or `make test PYTHON=.venv/bin/python`).
 
 # License
 

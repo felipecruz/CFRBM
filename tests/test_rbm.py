@@ -1,8 +1,8 @@
 """F5 parity contract for the F6 PyTorch CFRBM, using the F4 NumPy oracle.
 
 Run with ``python -m unittest tests.test_rbm -v`` (also in ``make test``).
-Only the legacy Theano source is skipped. Once it is replaced, missing torch,
-import errors and API mismatches fail normally rather than hiding regressions.
+Missing torch, import errors and API mismatches fail normally rather than
+hiding regressions.
 
 TorchAdapter is the only backend-specific boundary. It assumes the existing
 state names, constructor and cdk_fun(vis, masks, **options) -> callable API.
@@ -13,9 +13,7 @@ random-number sequence is part of the contract. These tests preserve F10–F12
 quirks until those features deliberately update the oracle and expectations.
 """
 
-import ast
 from contextlib import contextmanager
-from pathlib import Path
 import unittest
 from unittest.mock import patch
 
@@ -204,21 +202,6 @@ class RBMParityChecks:
 
 class TorchRBMParityTest(RBMParityChecks, unittest.TestCase):
     adapter_factory = TorchAdapter
-
-    @classmethod
-    def setUpClass(cls):
-        source = Path(__file__).resolve().parents[1] / 'cfrbm' / 'rbm.py'
-        tree = ast.parse(source.read_text(encoding='utf-8'))
-        # Inspect imports without importing the incompatible Theano package.
-        for node in ast.walk(tree):
-            modules = []
-            if isinstance(node, ast.Import):
-                modules = [alias.name for alias in node.names]
-            elif isinstance(node, ast.ImportFrom):
-                modules = [node.module or '']
-            if any(name.split('.')[0] == 'theano' for name in modules):
-                raise unittest.SkipTest('F6 pending: CFRBM still uses Theano; '
-                                        'PyTorch parity has not been verified')
 
 
 if __name__ == '__main__':

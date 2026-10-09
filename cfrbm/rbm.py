@@ -13,8 +13,8 @@ class CFRBM:
 
         NumPy's global RNG still initializes weights from normal(0, 0.1).
         Sampling has its own torch generator seeded with 17; its sequence is
-        not intended to match Theano's RNG. ``debug`` remains accepted for
-        compatibility, but no symbolic compiler settings are needed.
+        not intended to match the original backend's RNG. ``debug`` remains
+        accepted for compatibility, but no symbolic compiler settings are needed.
         """
         self.device = select_device(device)
         self.dim = (num_visible, num_hidden)

@@ -1,5 +1,10 @@
+PYTHON ?= python
+DEVICE ?= auto
+
+.PHONY: run test
+
 run:
-	THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python -m cfrbm.user_based ubased.json
+	$(PYTHON) -m cfrbm.user_based ubased.json --device $(DEVICE)
 
 test:
-	python -m unittest discover -v
+	$(PYTHON) -m unittest discover -v
