@@ -168,16 +168,18 @@ def run(name, dataset, config, all_users, all_movies, tests, initial_v, sep):
             res_output.write(json.dumps(config_result, indent=4))
 
 if __name__ == "__main__":
+    experiments = read_experiment(sys.argv[1])
 
-    experiment = read_experiment(sys.argv[1])
+    for experiment in experiments:
+        name = experiment['name']
+        train_path = experiment['train_path']
+        test_path = experiment['test_path']
+        sep = experiment['sep']
+        configs = experiment['configs']
 
-    name = experiment['name']
-    train_path = experiment['train_path']
-    test_path = experiment['test_path']
-    sep = experiment['sep']
+        all_users, all_movies, tests = load_dataset(train_path, test_path,
+                                                    sep, user_based=False)
 
-    all_users, all_movies, tests = load_dataset(train_path, test_path, sep,
-                                                user_based=False)
-
-    for config in experiment['configs']:
-        run(name, train_path, config, all_users, all_movies, tests, None, sep)
+        for config in configs:
+            run(name, train_path, config, all_users, all_movies, tests,
+                None, sep)
