@@ -69,7 +69,19 @@ Planned. Add tests of the current RBM math so the PyTorch rewrite can be checked
   | Limitation | Reference accepts fixed samples and does not reproduce random-number streams; live Theano numerical parity remains unverified on Python 3.12. |
   | Next step | In F5, compare the backend against these reference functions using fixed inputs and samples. |
 
-- [ ] **F5 — Parity test harness.** Add `tests/test_rbm.py`, which compares an RBM implementation against the F4 reference using `allclose` on fixed inputs and fixed samples, so no random-number matching is needed. Acceptance: the harness is ready to target the v1.0 PyTorch `CFRBM`. Depends on F4.
+- [x] **F5 — Parity test harness.** Add `tests/test_rbm.py`, which compares an RBM implementation against the F4 reference using `allclose` on fixed inputs and fixed samples, so no random-number matching is needed. Acceptance: the harness is ready to target the v1.0 PyTorch `CFRBM`. Depends on F4.
+
+  | Item | Content |
+  | --- | --- |
+  | Status | Done |
+  | Timestamp | 2026-10-10 |
+  | Complexity | M |
+  | Details | Clear math scope; estimated and changed one test file across fixtures, backend adaptation and parity assertions, plus tracking and handoff notes. Eight reusable checks compare propagation, fixed samples, five-way normalization, masked gradients and repeated CD-1 updates against F4 with shape checks and allclose. Resolved future API ambiguity in an isolated PyTorch adapter that assumes the existing callable factory signature. |
+  | Commit | `2da1b278e70225f11665a8d93e40760696880651` — implements F5. |
+  | Validation | Python 3.12.2: make test passed 9 tests with the PyTorch parity class explicitly skipped. A temporary NumPy adapter executing legacy math passed all 8 harness checks and rejected 5 injected faults. Confirmed missing torch fails all 8 cases after removing the legacy import gate. Roadmap validator and git diff --check passed. |
+  | Limitation | Actual PyTorch adapter execution and backend parity remain unverified until F6; the current Theano implementation is explicitly skipped and torch is not installed. |
+  | Limitation | The harness covers CD-1 updates, not CD-k chains or device-to-device parity. |
+  | Next step | In F6, run all 8 parity cases without skips; if the callable factory signature changes, update TorchAdapter.train while retaining the reference checks. |
 
 ## v1.0 — PyTorch backend
 
