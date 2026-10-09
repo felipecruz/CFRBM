@@ -1,6 +1,7 @@
 """Deterministic NumPy reference for cfrbm/rbm.py math.
 
-This includes velocity momentum (F10), retaining the F11–F12 quirks. Supply binary
+This includes velocity momentum (F10) and observed-only phase masks (F11).
+Visible sampling retains the F12 quirk. Supply binary
 samples explicitly; no random generator or tensor backend is needed. Arrays use
 the same batch/visible/hidden axes as CFRBM. The update returns new parameters
 and velocity memory without mutating inputs, matching simultaneous shared updates.
@@ -38,11 +39,8 @@ def sample_visible(h, weights, vbias, visible_sample, k=5):
 
 def gradient(v1, h1, v2, h2p, masks):
     """Return (weight, visible-bias, hidden-bias) batch-mean gradients."""
-    v1h1_mask = outer(masks, h1)
-    # Preserve both h1 factors in the positive phase and h1 in the negative
-    # phase. Binary h1 makes its positive-phase square equal to itself.
-    gw = ((outer(v1, h1) * v1h1_mask)
-          - (outer(v2, h2p) * v1h1_mask)).mean(axis=0)
+    observed = masks[:, :, np.newaxis]
+    gw = ((outer(v1, h1) - outer(v2, h2p)) * observed).mean(axis=0)
     gv = ((v1 * masks) - (v2 * masks)).mean(axis=0)
     gh = (h1 - h2p).mean(axis=0)
     return gw, gv, gh

@@ -64,10 +64,10 @@ class CFRBM:
         return v1, h1, v2, v2a, h2, h2a
 
     def gradient(self, v1, h1, v2, h2p, masks):
-        # h1 is binary, so h1 squared in the legacy positive phase is h1.
-        # Retain the extra negative-phase h1 factor until F11.
+        # Observed-rating masks apply to both phases; negative hidden
+        # probabilities must contribute even when the positive sample is zero.
         positive, negative = v1 * masks, v2 * masks
-        gw = (positive.T @ h1 - negative.T @ (h2p * h1)) / v1.shape[0]
+        gw = (positive.T @ h1 - negative.T @ h2p) / v1.shape[0]
         gv = (positive - negative).mean(dim=0)
         gh = (h1 - h2p).mean(dim=0)
         return gw, gv, gh

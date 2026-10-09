@@ -39,7 +39,7 @@ class RBMReferenceTest(unittest.TestCase):
         assert_allclose(normalized, expected)
         assert_allclose(normalized.reshape(2, 2, 5).sum(axis=2), 1)
 
-    def test_gradient_retains_hidden_factor_and_unmasked_hidden_bias(self):
+    def test_gradient_masks_observed_ratings_and_keeps_unmasked_hidden_bias(self):
         v1 = np.array([[1., 0., 0., 0., 0.], [0., 1., 0., 0., 0.]])
         h1 = np.array([[1., 0.], [0., 1.]])
         v2 = np.array([[0., 1., 1., 0., 0.], [1., 0., 0., 1., 0.]])
@@ -47,7 +47,7 @@ class RBMReferenceTest(unittest.TestCase):
         masks = np.array([[1., 1., 1., 1., 1.], [0., 0., 0., 0., 0.]])
 
         gw, gv, gh = reference.gradient(v1, h1, v2, h2p, masks)
-        assert_allclose(gw, [[.5, 0], [-.125, 0], [-.125, 0], [0, 0], [0, 0]])
+        assert_allclose(gw, [[.5, 0], [-.125, -.375], [-.125, -.375], [0, 0], [0, 0]])
         assert_allclose(gv, [.5, -.5, -.5, 0, 0])
         assert_allclose(gh, [.075, -.075])
 

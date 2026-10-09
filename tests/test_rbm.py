@@ -10,8 +10,8 @@ If F6 changes that factory signature, adapt train() here. Sampling must call
 torch.bernoulli; we replace that operation, not the model's sampling methods,
 so normalization and the complete CD path are still exercised. No RNG seed or
 random-number sequence is part of the contract. The oracle and expectations
-include F10 velocity momentum; F11–F12
-quirks remain until those features deliberately update them.
+include F10 velocity momentum and F11 phase
+masks. The F12 visible-sampling quirk remains.
 """
 
 from contextlib import contextmanager
@@ -166,6 +166,28 @@ class RBMParityChecks:
         actual = self.backend.gradient(*values)
         expected = reference.gradient(*values)
         self.assertEqual(len(actual), len(expected))
+        for value, target in zip(actual, expected):
+            self.assert_close(value, target)
+
+    def test_negative_phase_contributes_with_zero_positive_hidden_sample(self):
+        # Hand-derived target: zero h1 must not erase observed negatives.
+        hidden = np.zeros_like(self.hidden)
+        h2p = np.full_like(hidden, .25)
+        negative = np.ones_like(self.visible)
+        expected = (-np.repeat(self.masks.mean(axis=0)[:, None], 3, axis=1) * .25,
+                    ((self.visible - negative) * self.masks).mean(axis=0),
+                    np.full(3, -.25, dtype=np.float32))
+        for actual in (self.backend.gradient(self.visible, hidden, negative, h2p, self.masks),
+                       reference.gradient(self.visible, hidden, negative, h2p, self.masks)):
+            for value, target in zip(actual, expected):
+                self.assert_close(value, target)
+
+    def test_unobserved_negative_ratings_do_not_change_visible_gradients(self):
+        h2p = np.full_like(self.hidden, .25)
+        changed = np.where(self.masks == 0, 1 - self.negative, self.negative)
+        expected = self.backend.gradient(self.visible, self.hidden,
+                                         self.negative, h2p, self.masks)
+        actual = self.backend.gradient(self.visible, self.hidden, changed, h2p, self.masks)
         for value, target in zip(actual, expected):
             self.assert_close(value, target)
 
