@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cfrbm"
+version = "1.0.0"
+description = "Restricted Boltzmann Machines for collaborative filtering, in PyTorch"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.9"
+dependencies = ["numpy", "torch"]
+
+[project.urls]
+Homepage = "https://github.com/felipecruz/CFRBM"
+
+[tool.setuptools]
+packages = ["cfrbm"]

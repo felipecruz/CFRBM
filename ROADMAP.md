@@ -46,7 +46,7 @@ Planned. Port the code to Python 3 without touching Theano or the model math, in
   | Timestamp | 2026-10-10 |
   | Complexity | S |
   | Details | Clear import scope; estimated five implementation files across two runners, dependencies and launch documentation, plus tracking. Both runners use package-relative imports; README and Makefile use module execution. requirements.txt declares numpy and the current Theano backend, interpreting torch from v1.0 as a future dependency. |
-  | Commit | `17ed0c56883e49d68ac89d07b97a8cf6a9e2ee31` — implements F3. |
+  | Commit | `17ed0c56883e49d68ac89d07b97a8cf6a9e2ee31` — implements F3.; `aa600b1daeda379b2abefe7394b401ea8b86d945` |
   | Validation | Python 3.12.2: make test passed all 4 tests. With only Theano stubbed, all six cfrbm modules imported and both module entry points parsed ubased.json and reached dataset loading. make -n run, roadmap validator and git diff --check passed. |
   | Limitation | The real user_based CLI still fails during Theano import because collections.MutableMapping is unavailable on Python 3.12; the full import acceptance check is not met in this environment. |
   | Limitation | Training remains unverified; the configured ml-100k/u1.base file is absent. |
@@ -64,7 +64,7 @@ Planned. Add tests of the current RBM math so the PyTorch rewrite can be checked
   | Timestamp | 2026-10-10 |
   | Complexity | M |
   | Details | Clear math scope; estimated and changed two test files across a NumPy reference and deterministic regression tests, plus tracking. Resolved sampling ambiguity with supplied binary visible samples. Added propagation, grouped sigmoid normalization, masked gradients and simultaneous float32 updates; preserved raw-gradient momentum, the negative-phase h1 factor and non-one-hot samples. |
-  | Commit | `8a86d6d5e67fbc26cee2767691316296e2c6fc3a` — implements F4. |
+  | Commit | `8a86d6d5e67fbc26cee2767691316296e2c6fc3a` — implements F4.; `8646d18d5993463ad29b281d7653507314a10060` |
   | Validation | Python 3.12.2: make test passed all 9 tests, including 5 new hand-calculated regression tests covering propagation, two rating groups per user, masks, momentum, decay, defaults, deterministic updates and unchanged inputs. Roadmap validator and git diff --check passed. |
   | Limitation | Reference accepts fixed samples and does not reproduce random-number streams; live Theano numerical parity remains unverified on Python 3.12. |
   | Next step | In F5, compare the backend against these reference functions using fixed inputs and samples. |
@@ -77,7 +77,7 @@ Planned. Add tests of the current RBM math so the PyTorch rewrite can be checked
   | Timestamp | 2026-10-10 |
   | Complexity | M |
   | Details | Clear math scope; estimated and changed one test file across fixtures, backend adaptation and parity assertions, plus tracking and handoff notes. Eight reusable checks compare propagation, fixed samples, five-way normalization, masked gradients and repeated CD-1 updates against F4 with shape checks and allclose. Resolved future API ambiguity in an isolated PyTorch adapter that assumes the existing callable factory signature. |
-  | Commit | `2da1b278e70225f11665a8d93e40760696880651` — implements F5. |
+  | Commit | `2da1b278e70225f11665a8d93e40760696880651` — implements F5.; `489db140f75071411ad25643efd23eb9c99e9c8b` |
   | Validation | Python 3.12.2: make test passed 9 tests with the PyTorch parity class explicitly skipped. A temporary NumPy adapter executing legacy math passed all 8 harness checks and rejected 5 injected faults. Confirmed missing torch fails all 8 cases after removing the legacy import gate. Roadmap validator and git diff --check passed. |
   | Limitation | Actual PyTorch adapter execution and backend parity remain unverified until F6; the current Theano implementation is explicitly skipped and torch is not installed. |
   | Limitation | The harness covers CD-1 updates, not CD-k chains or device-to-device parity. |
@@ -95,7 +95,7 @@ Planned. Replace Theano with PyTorch and keep the training behavior the same. Ex
   | Timestamp | 2026-10-10 |
   | Complexity | M |
   | Details | Clear math scope; estimated and changed three implementation files across backend, dependencies and tests, plus tracking. Preserved NumPy normal(0, 0.1) initialization, constructor and checkpoint suffixes, callable factories and legacy CD-k final-transition math. Sampling uses a local torch.Generator seeded with 17; matrix-multiply gradients and in-place no-grad updates retain F10-F12 quirks. requirements.txt now declares torch. |
-  | Commit | `d32402c155c02b3c3255e4436eb648f10c3c6d47` — implements F6. |
+  | Commit | `d32402c155c02b3c3255e4436eb648f10c3c6d47` — implements F6.; `81bdcb14a74bf587362f31cbed9548eaef6ce87e` |
   | Validation | Python 3.12.2 / PyTorch 2.14.1 CPU: make test passed all 22 tests without skips, including all 8 unchanged F5 parity cases and 5 new backend checks. Real-sampling CD-3 training/prediction smoke passed. Roadmap validator and git diff --check passed. |
   | Limitation | CPU float32 tensors only; accelerator selection and full runner integration remain unverified and are scheduled in F7-F9. Legacy runners still import Theano. |
   | Limitation | Seed 17 controls sampling; initialization retains NumPy's global RNG. PyTorch random streams do not reproduce Theano draws; debug is accepted without compiler effects. |
@@ -109,7 +109,7 @@ Planned. Replace Theano with PyTorch and keep the training behavior the same. Ex
   | Timestamp | 2026-10-10 |
   | Complexity | M |
   | Details | Clear selection priority; estimated and changed seven code/test files across device resolution, RBM state and both CLIs. Resolved unspecified overrides as auto, cpu, mps and cuda[:index], with errors for unavailable devices. Parameters, momentum and seeded sampling use the selected device. Minimal F8 runner tensor conversion and Python 3 key-view fixes enable both CLIs. |
-  | Commit | `29695432f2ae77ec3b26818828711f117d0fc1aa` — implements F7. |
+  | Commit | `29695432f2ae77ec3b26818828711f117d0fc1aa` — implements F7.; `5eb680ddd454dd640d1a5cf05e295f7d1aac8e81` |
   | Validation | Python 3.12.2 / PyTorch 2.14.1: make test passed 28 tests with CUDA alone skipped outside the sandbox. CPU and MPS CD-3 updates and prediction passed; both CLIs completed two-epoch synthetic experiments on CPU, MPS and auto with finite metrics and results JSON. All 8 F5 parity cases passed; device priority, invalid overrides and checkpoint placement checked. Roadmap validator and git diff --check passed. |
   | Limitation | CUDA execution and indexed multi-GPU training are unverified because this host has no CUDA device; selection policy is covered with mocked availability. |
   | Limitation | MPS is hidden by the execution sandbox on this host; real MPS validation required running outside it. Cross-device random streams are not guaranteed identical. |
@@ -124,7 +124,7 @@ Planned. Replace Theano with PyTorch and keep the training behavior the same. Ex
   | Timestamp | 2026-10-10 |
   | Complexity | M |
   | Details | Clear implementation scope; estimated and changed five implementation files across launch commands, documentation and obsolete backend references, plus tracking. F6/F7 already supply both runners' tensor conversions and numpy/torch dependencies. Make targets now use PyTorch module execution with PYTHON/DEVICE overrides; README covers environment setup, dataset extraction and both CLIs. Removed the obsolete parity skip gate. |
-  | Commit | `384f761327d6da072d78b7b765b9669f7243c80a` — implements F8. |
+  | Commit | `384f761327d6da072d78b7b765b9669f7243c80a` — implements F8.; `3c7ff966b2f612a992633738e9ffcbad53f81d15` |
   | Validation | Python 3.12.2 / PyTorch 2.14.1: make test ran 29 tests, 27 passed and 2 accelerator checks skipped; includes both CLI integrations and all 8 parity checks. Default make run with activated .venv completed MovieLens epoch 0 on CPU, wrote JSON, MAE 0.931794 and RMSE 1.187261, then was intentionally stopped. Scoped backend-reference search, roadmap validator and git diff --check passed. |
   | Limitation | Literal unrestricted grep still matches preserved roadmap history, prior job notes and environment/Git artifacts. Zero matches verified in tracked application code, tests, Makefile, README and requirements; preserving unrelated history takes precedence over erasing these records. |
   | Limitation | CUDA and MPS were unavailable inside this sandbox; accelerator execution was not revalidated for F8. |
@@ -139,7 +139,7 @@ Planned. Replace Theano with PyTorch and keep the training behavior the same. Ex
   | Timestamp | 2026-10-10 |
   | Complexity | M |
   | Details | Clear acceptance criteria; estimated and added five validation files plus job notes and roadmap tracking across execution and evidence. Resolved unspecified device/seed as CPU and seed 17. Ran unchanged ubased.json and training code for all 100 epochs; saved console metrics, exact results JSON, environment/input hashes, reproduction instructions and an evidence checker in validation/f9. |
-  | Commit | `d82c4b842b7911d80a475842ce7dfcaace771d5d` — implements F9 validation evidence. |
+  | Commit | `d82c4b842b7911d80a475842ce7dfcaace771d5d` — implements F9 validation evidence.; `4ed0522b9896adfa86a522facfcd1531b10571c6` |
   | Validation | Training exited 0 in 774.93 seconds; all 100 sequential epochs, log/JSON agreement, configuration, input hashes and coverage checks passed. Final MAE 0.793114, RMSE 1.066830; accuracy check correctly exits 1 because 0.95–1.0 was not reached. make test: 27 passed, 2 unavailable-accelerator skips. Roadmap validator and git diff --check passed. |
   | Limitation | Final RMSE 1.066830 misses the requested range; best RMSE was 1.063114 at epoch 33. Accuracy acceptance remains unmet. |
   | Limitation | Existing evaluator rounds predictions and scores 19,837 of 20,000 ratings; 32 unknown-movie ratings trigger per-user skips totaling 163 ratings. |
@@ -159,7 +159,7 @@ Provisional. Fix the training bugs that v1.0 kept on purpose. Make each fix its 
   | Timestamp | 2026-10-10 |
   | Complexity | M |
   | Details | Clear formula; estimated and changed four shared code/test files across RBM updates, NumPy reference and parity/regression checks, plus six validation files and tracking. Historical prev_g* state now stores velocities; parameters add those steps in place, preserving weight-only decay and state across epoch factories. Resolved comparison ambiguity with the verified F9 CPU seed-17 baseline. |
-  | Commit | `471ee2a84ec70c3afcbbb32985d4ef91c031f4f4` — implements F10 and records its RMSE evidence. |
+  | Commit | `471ee2a84ec70c3afcbbb32985d4ef91c031f4f4` — implements F10 and records its RMSE evidence.; `2016fd375e522a274e942d0c515efdf95f366eee` |
   | Validation | 31 tests ran: 29 passed, 2 unavailable-accelerator skips. Updated F4 reference and parity cover repeated velocities, decay, zero/changed learning rates and new factories. Completed 100 CPU epochs: final RMSE 1.066829754 → 1.155391569; MAE 0.793113878 → 0.897867621. Best RMSE 1.100463453 at epoch 40. Log/JSON, input/environment and commit source-hash checks passed; see validation/f10. Roadmap validator and git diff --check passed. |
   | Limitation | Corrected momentum worsens final RMSE under unchanged hyperparameters and misses F9's 0.95–1.0 target; settings were not retuned. |
   | Limitation | One CPU seed only; CUDA and MPS validation skipped because unavailable in the sandbox. |
@@ -175,7 +175,7 @@ Provisional. Fix the training bugs that v1.0 kept on purpose. Make each fix its 
   | Timestamp | 2026-10-10 |
   | Complexity | M |
   | Details | Clear formula; estimated and changed four shared code/test files across RBM gradients, NumPy reference and parity/regression checks, plus four validation files and tracking. Both weight-gradient phases use observed-rating masks; the negative term no longer multiplies by h1. Bias gradients are unchanged. Resolved comparison ambiguity as F10 → F11, also reporting cumulative change from F9. |
-  | Commit | `f4430eb5d8ff2d6c3efc970afcf4c5e9b426c5b3` — implements F11 and records its RMSE evidence. |
+  | Commit | `f4430eb5d8ff2d6c3efc970afcf4c5e9b426c5b3` — implements F11 and records its RMSE evidence.; `2016fd375e522a274e942d0c515efdf95f366eee` |
   | Validation | 33 tests ran: 31 passed, 2 unavailable-accelerator skips. Updated reference/parity and hand-derived zero-h1 regression pass; unobserved negatives remain masked. Completed 100 CPU epochs: final RMSE 1.155391569 → 1.082427337; MAE 0.897867621 → 0.817260674. Best RMSE at epoch 100. Cumulative RMSE versus F9: +0.015597582. Log/JSON, input/environment and commit source-hash checks passed; see validation/f11. Roadmap validator and git diff --check passed. |
   | Limitation | Final RMSE remains above F9's 1.066829754 baseline and 0.95–1.0 target under unchanged hyperparameters. |
   | Limitation | Sequential comparison on top of F10, one CPU seed only; an F11-only ablation with legacy momentum and accelerator accuracy are unverified. |
