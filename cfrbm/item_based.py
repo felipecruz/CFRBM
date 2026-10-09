@@ -7,12 +7,12 @@ from math import sqrt
 import numpy as np
 import theano.tensor as T
 
-import utils
+from . import utils
 
-from rbm import CFRBM
-from experiments import read_experiment
-from utils import revert_expected_value, expand, iteration_str
-from dataset import load_dataset
+from .rbm import CFRBM
+from .experiments import read_experiment
+from .utils import revert_expected_value, expand, iteration_str
+from .dataset import load_dataset
 
 
 

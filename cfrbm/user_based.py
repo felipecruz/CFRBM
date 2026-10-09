@@ -7,10 +7,10 @@ from math import sqrt
 import numpy as np
 import theano.tensor as T
 
-from rbm import CFRBM
-from experiments import read_experiment
-from utils import chunker, revert_expected_value, expand, iteration_str
-from dataset import load_dataset
+from .rbm import CFRBM
+from .experiments import read_experiment
+from .utils import chunker, revert_expected_value, expand, iteration_str
+from .dataset import load_dataset
 
 
 def run(name, dataset, config, all_users, all_movies, tests, initial_v, sep):

@@ -8,11 +8,15 @@ This code works, so far, only with ratings from 1 to 5.
 
 ## Dependencies
 
-This library relies on Theano.
+This library currently relies on NumPy and the legacy Theano backend.
 
 ```
-$ pip install theano
+$ python -m pip install -r requirements.txt
 ```
+
+The planned v1.0 migration will replace Theano with PyTorch (`torch`). The
+current backend is not compatible with the project's Python 3.12 environment;
+installing these dependencies alone does not resolve that compatibility issue.
 
 ## Test dataset
 
@@ -31,8 +35,11 @@ $ make run
 or 
 
 ```
-$ THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python cfrbm/user_based.py ubased.json
+$ THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python -m cfrbm.user_based ubased.json
 ```
+
+Run these commands from the repository root. For item-based experiments, use
+`python -m cfrbm.item_based ubased.json`.
 
 # License
 
