@@ -1,3 +1,2 @@
 numpy
-# Legacy backend; replace with torch when the v1.0 migration lands.
-Theano
+torch

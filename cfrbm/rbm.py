@@ -1,24 +1,19 @@
+"""PyTorch RBM preserving the legacy contrastive-divergence update rule."""
+
 import numpy as np
-import theano
-import theano.tensor as T
-import theano.sparse
-
-
-x = T.matrix()
-y = T.matrix()
-
-
-def outer(x, y):
-    return x[:, :, np.newaxis] * y[:, np.newaxis, :]
-
-
-def cast32(x):
-    return T.cast(x, 'float32')
+import torch
 
 
 class CFRBM:
     def __init__(self, num_visible, num_hidden, initial_v=None,
                  initial_weigths=None, debug=False):
+        """Create CPU float32 state, retaining the historical constructor API.
+
+        NumPy's global RNG still initializes weights from normal(0, 0.1).
+        Sampling has its own torch generator seeded with 17; its sequence is
+        not intended to match Theano's RNG. ``debug`` remains accepted for
+        compatibility, but no symbolic compiler settings are needed.
+        """
         self.dim = (num_visible, num_hidden)
         self.num_visible = num_visible
         self.num_hidden = num_hidden
@@ -31,113 +26,84 @@ class CFRBM:
             initial_weights = np.array(np.random.normal(0, 0.1, size=self.dim),
                                        dtype=np.float32)
             initial_hbias = np.zeros(num_hidden, dtype=np.float32)
+            initial_vbias = (initial_v if initial_v is not None
+                             else np.zeros(num_visible, dtype=np.float32))
 
-            if initial_v:
-                initial_vbias = np.array(initial_v, dtype=np.float32)
-            else:
-                initial_vbias = np.zeros(num_visible, dtype=np.float32)
-
-        self.weights = theano.shared(value=initial_weights,
-                                     borrow=True,
-                                     name='weights')
-        self.vbias = theano.shared(value=initial_vbias,
-                                   borrow=True,
-                                   name='vbias')
-        self.hbias = theano.shared(value=initial_hbias,
-                                   borrow=True,
-                                   name='hbias')
-
-        prev_gw = np.zeros(shape=self.dim, dtype=np.float32)
-        self.prev_gw = theano.shared(value=prev_gw, borrow=True, name='g_w')
-
-        prev_gh = np.zeros(num_hidden, dtype=np.float32)
-        self.prev_gh = theano.shared(value=prev_gh, borrow=True, name='g_h')
-
-        prev_gv = np.zeros(num_visible, dtype=np.float32)
-        self.prev_gv = theano.shared(value=prev_gv, borrow=True, name='g_v')
-
-        self.theano_rng = T.shared_randomstreams.RandomStreams(
-            np.random.RandomState(17).randint(2**30))
-
-        if debug:
-            theano.config.compute_test_value = 'warn'
-            theano.config.optimizer = 'None'
-            theano.config.exception_verbosity = 'high'
+        self.weights = torch.tensor(initial_weights, dtype=torch.float32)
+        self.vbias = torch.tensor(initial_vbias, dtype=torch.float32)
+        self.hbias = torch.tensor(initial_hbias, dtype=torch.float32)
+        self.prev_gw = torch.zeros_like(self.weights)
+        self.prev_gh = torch.zeros_like(self.hbias)
+        self.prev_gv = torch.zeros_like(self.vbias)
+        self.generator = torch.Generator(device='cpu').manual_seed(17)
 
     def prop_up(self, vis):
-        return T.nnet.sigmoid(T.dot(vis, self.weights) + self.hbias)
+        return torch.sigmoid(vis @ self.weights + self.hbias)
 
     def sample_hidden(self, vis):
         activations = self.prop_up(vis)
-        h1_sample = self.theano_rng.binomial(size=activations.shape,
-                                             n=1, p=activations,
-                                             dtype=theano.config.floatX)
-        return h1_sample, activations
+        return torch.bernoulli(activations, generator=self.generator), activations
 
     def prop_down(self, h):
-        return T.nnet.sigmoid(T.dot(h, self.weights.T) + self.vbias)
+        return torch.sigmoid(h @ self.weights.T + self.vbias)
 
     def sample_visible(self, h, k=5):
         activations = self.prop_down(h)
-        k_ones = T.ones(k)
-
-        partitions = \
-            activations.reshape((-1, k)).sum(axis=1).reshape((-1, 1)) * k_ones
-
-        activations = activations / partitions.reshape(activations.shape)
-        v1_sample = self.theano_rng.binomial(size=activations.shape,
-                                             n=1, p=activations,
-                                             dtype=theano.config.floatX)
-
-        return v1_sample, activations
+        groups = activations.reshape(-1, k)
+        activations = (groups / groups.sum(dim=1, keepdim=True)).reshape_as(activations)
+        return torch.bernoulli(activations, generator=self.generator), activations
 
     def contrastive_divergence_1(self, v1):
         h1, _ = self.sample_hidden(v1)
         v2, v2a = self.sample_visible(h1)
         h2, h2a = self.sample_hidden(v2)
-
-        return (v1, h1, v2, v2a, h2, h2a)
+        return v1, h1, v2, v2a, h2, h2a
 
     def gradient(self, v1, h1, v2, h2p, masks):
-        v1h1_mask = outer(masks, h1)
-
-        gw = ((outer(v1, h1) * v1h1_mask) -
-              (outer(v2, h2p) * v1h1_mask)).mean(axis=0)
-        gv = ((v1 * masks) - (v2 * masks)).mean(axis=0)
-        gh = (h1 - h2p).mean(axis=0)
-
-        return (gw, gv, gh)
+        # h1 is binary, so h1 squared in the legacy positive phase is h1.
+        # Retain the extra negative-phase h1 factor until F11.
+        positive, negative = v1 * masks, v2 * masks
+        gw = (positive.T @ h1 - negative.T @ (h2p * h1)) / v1.shape[0]
+        gv = (positive - negative).mean(dim=0)
+        gh = (h1 - h2p).mean(dim=0)
+        return gw, gv, gh
 
     def cdk_fun(self, vis, masks, k=1, w_lr=0.000021, v_lr=0.000025,
                 h_lr=0.000025, decay=0.0000, momentum=0.0):
-        v1, h1, v2, v2a, h2, h2a = self.contrastive_divergence_1(vis)
+        """Return train(batch, masks); factory inputs are compatibility placeholders.
 
-        for i in range(k-1):
-            v1, h1, v2, v2a, h2, h2a = self.contrastive_divergence_1(v2)
+        As in the legacy implementation, CD-k computes its gradient from the
+        final transition, and momentum remembers raw gradients, not velocity.
+        """
+        @torch.no_grad()
+        def train(batch, batch_masks):
+            v1, h1, v2, _, _, h2a = self.contrastive_divergence_1(batch)
+            for _ in range(k - 1):
+                v1, h1, v2, _, _, h2a = self.contrastive_divergence_1(v2)
+            W, V, H = self.gradient(v1, h1, v2, h2a, batch_masks)
+            if decay:
+                W = W - decay * self.weights
 
-        (W, V, H) = self.gradient(v1, h1, v2, h2a, masks)
+            # Compute gradients before mutating state; keep all tensor identities.
+            self.weights.copy_(self.weights + momentum * self.prev_gw + W * w_lr)
+            self.vbias.copy_(self.vbias + momentum * self.prev_gv + V * v_lr)
+            self.hbias.copy_(self.hbias + momentum * self.prev_gh + H * h_lr)
+            self.prev_gw.copy_(W)
+            self.prev_gv.copy_(V)
+            self.prev_gh.copy_(H)
 
-        if decay:
-            W -= decay * self.weights
+        return train
 
-        updates = [
-            (self.weights,
-             cast32(self.weights + (momentum * self.prev_gw) +
-                                   (W * w_lr))),
-            (self.vbias,
-             cast32(self.vbias + (momentum * self.prev_gv) +
-                                 (V * v_lr))),
-            (self.hbias,
-             cast32(self.hbias + (momentum * self.prev_gh) +
-                                 (H * h_lr))),
-            (self.prev_gw, cast32(W)),
-            (self.prev_gh, cast32(H)),
-            (self.prev_gv, cast32(V))
-        ]
+    def predict(self, v1=None):
+        """Return a callable producing normalized visible probabilities.
 
-        return theano.function([vis, masks], updates=updates)
+        The optional factory input preserves predict(vis) calls. Supply the
+        actual tensor batch to the returned callable; prediction is stochastic.
+        """
+        @torch.no_grad()
+        def predict_batch(batch):
+            h1, _ = self.sample_hidden(batch)
+            _, probabilities = self.sample_visible(h1)
+            return probabilities
 
-    def predict(self, v1):
-        h1, _ = self.sample_hidden(v1)
-        v2, v2a = self.sample_visible(h1)
-        return theano.function([v1], v2a)
+        return predict_batch
