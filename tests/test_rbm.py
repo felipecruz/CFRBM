@@ -36,7 +36,7 @@ class TorchAdapter:
         from cfrbm.rbm import CFRBM
 
         self.torch = torch
-        self.model = CFRBM(*state[0].shape)
+        self.model = CFRBM(*state[0].shape, device="cpu")
         with torch.no_grad():
             for name, value in zip(STATE_NAMES, state):
                 target = getattr(self.model, name)

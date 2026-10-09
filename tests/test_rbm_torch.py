@@ -22,7 +22,7 @@ class TorchRBMContractTest(unittest.TestCase):
             expected = np.random.normal(0, .1, (10, 3)).astype(np.float32)
             np.random.seed(23)
             bias = np.arange(10, dtype=np.float32)
-            model = CFRBM(10, 3, initial_v=bias, debug=True)
+            model = CFRBM(10, 3, initial_v=bias, debug=True, device="cpu")
         finally:
             np.random.set_state(rng)
         assert_array_equal(model.weights.numpy(), expected)
@@ -42,12 +42,12 @@ class TorchRBMContractTest(unittest.TestCase):
             prefix = Path(directory) / 'checkpoint'
             for suffix, value in [('W', weights), ('b', vbias), ('h', hbias)]:
                 np.save(f'{prefix}.{suffix}.npy', value)
-            model = CFRBM(10, 3, initial_v=[99] * 10, initial_weigths=prefix)
+            model = CFRBM(10, 3, initial_v=[99] * 10, initial_weigths=prefix, device="cpu")
         for name, expected in [('weights', weights), ('vbias', vbias), ('hbias', hbias)]:
             assert_array_equal(getattr(model, name).numpy(), expected)
 
     def test_seeded_sampling_is_local_reproducible_and_advances(self):
-        first, second = CFRBM(10, 3), CFRBM(10, 3)
+        first, second = CFRBM(10, 3, device="cpu"), CFRBM(10, 3, device="cpu")
         second.weights.copy_(first.weights)
         visible = torch.zeros(100, 10)
         global_state = torch.random.get_rng_state().clone()
@@ -65,7 +65,7 @@ class TorchRBMContractTest(unittest.TestCase):
         torch.testing.assert_close(torch.random.get_rng_state(), global_state, rtol=0, atol=0)
 
     def test_prediction_factory_is_lazy_reusable_and_returns_probabilities(self):
-        model = CFRBM(10, 3)
+        model = CFRBM(10, 3, device="cpu")
         batch = torch.zeros(2, 10, requires_grad=True)
         hidden = torch.tensor([[1., 0., 1.], [0., 1., 0.]])
         expected = reference.sample_visible(hidden.numpy(), model.weights.numpy(),

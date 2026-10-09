@@ -5,18 +5,19 @@ from collections import defaultdict
 from math import sqrt
 
 import numpy as np
-import theano.tensor as T
+import torch
 
 from . import utils
 
 from .rbm import CFRBM
+from .device import parse_args
 from .experiments import read_experiment
 from .utils import revert_expected_value, expand, iteration_str
 from .dataset import load_dataset
 
 
 
-def run(name, dataset, config, all_users, all_movies, tests, initial_v, sep):
+def run(name, dataset, config, all_users, all_movies, tests, initial_v, sep, device=None):
     config_name = config['name']
     number_hidden = config['number_hidden']
     epochs = config['epochs']
@@ -30,10 +31,8 @@ def run(name, dataset, config, all_users, all_movies, tests, initial_v, sep):
     config_result = config.copy()
     config_result['results'] = []
 
-    vis = T.matrix()
-    vmasks = T.matrix()
-
-    rbm = CFRBM(len(all_users) * 5, number_hidden)
+    rbm = CFRBM(len(all_users) * 5, number_hidden, device=device)
+    print(f"Using device: {rbm.device}")
 
     profiles = defaultdict(list)
 
@@ -63,18 +62,18 @@ def run(name, dataset, config, all_users, all_movies, tests, initial_v, sep):
         current_l_v = l_v[icurrent_l_v]
         current_l_h = l_h[icurrent_l_h]
 
-        train = rbm.cdk_fun(vis,
-                            vmasks,
+        train = rbm.cdk_fun(None,
+                            None,
                             k=k,
                             w_lr=current_l_w,
                             v_lr=current_l_v,
                             h_lr=current_l_h,
                             decay=decay,
                             momentum=momentum)
-        predict = rbm.predict(vis)
+        predict = rbm.predict()
 
         batch_size = 10
-        for batch_i, batch in enumerate(utils.chunker(profiles.keys(),
+        for batch_i, batch in enumerate(utils.chunker(list(profiles),
                                                       batch_size)):
             size = min(len(batch), batch_size)
 
@@ -101,7 +100,8 @@ def run(name, dataset, config, all_users, all_movies, tests, initial_v, sep):
             train_masks = np.array(masks_batch).reshape(size,
                                                         len(all_users) * 5)
             train_masks = train_masks.astype('float32')
-            train(train_batch, train_masks)
+            train(torch.from_numpy(train_batch).to(rbm.device),
+                  torch.from_numpy(train_masks).to(rbm.device))
             sys.stdout.write('.')
             sys.stdout.flush()
 
@@ -109,7 +109,7 @@ def run(name, dataset, config, all_users, all_movies, tests, initial_v, sep):
         ratings = []
         predictions = []
 
-        for batch in utils.chunker(tests.keys(), batch_size):
+        for batch in utils.chunker(list(tests), batch_size):
             size = min(len(batch), batch_size)
 
             # create needed binary vectors
@@ -132,7 +132,8 @@ def run(name, dataset, config, all_users, all_movies, tests, initial_v, sep):
             movies_batch = [bin_profiles[el] for el in batch]
             test_batch = np.array(movies_batch).reshape(size,
                                                         len(all_users) * 5)
-            movie_predictions = revert_expected_value(predict(test_batch))
+            movie_predictions = revert_expected_value(
+                predict(torch.from_numpy(test_batch).to(rbm.device)).cpu().numpy())
             for movie_id in batch:
                 test_users = tests[movie_id]
                 try:
@@ -168,7 +169,8 @@ def run(name, dataset, config, all_users, all_movies, tests, initial_v, sep):
             res_output.write(json.dumps(config_result, indent=4))
 
 if __name__ == "__main__":
-    experiments = read_experiment(sys.argv[1])
+    args = parse_args()
+    experiments = read_experiment(args.experiment)
 
     for experiment in experiments:
         name = experiment['name']
@@ -182,4 +184,4 @@ if __name__ == "__main__":
 
         for config in configs:
             run(name, train_path, config, all_users, all_movies, tests,
-                None, sep)
+                None, sep, device=args.device)

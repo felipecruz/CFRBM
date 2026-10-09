@@ -3,17 +3,20 @@
 import numpy as np
 import torch
 
+from .device import select_device
+
 
 class CFRBM:
     def __init__(self, num_visible, num_hidden, initial_v=None,
-                 initial_weigths=None, debug=False):
-        """Create CPU float32 state, retaining the historical constructor API.
+                 initial_weigths=None, debug=False, device=None):
+        """Create float32 state on the selected device (CUDA, MPS, then CPU).
 
         NumPy's global RNG still initializes weights from normal(0, 0.1).
         Sampling has its own torch generator seeded with 17; its sequence is
         not intended to match Theano's RNG. ``debug`` remains accepted for
         compatibility, but no symbolic compiler settings are needed.
         """
+        self.device = select_device(device)
         self.dim = (num_visible, num_hidden)
         self.num_visible = num_visible
         self.num_hidden = num_hidden
@@ -29,13 +32,13 @@ class CFRBM:
             initial_vbias = (initial_v if initial_v is not None
                              else np.zeros(num_visible, dtype=np.float32))
 
-        self.weights = torch.tensor(initial_weights, dtype=torch.float32)
-        self.vbias = torch.tensor(initial_vbias, dtype=torch.float32)
-        self.hbias = torch.tensor(initial_hbias, dtype=torch.float32)
+        self.weights = torch.tensor(initial_weights, dtype=torch.float32, device=self.device)
+        self.vbias = torch.tensor(initial_vbias, dtype=torch.float32, device=self.device)
+        self.hbias = torch.tensor(initial_hbias, dtype=torch.float32, device=self.device)
         self.prev_gw = torch.zeros_like(self.weights)
         self.prev_gh = torch.zeros_like(self.hbias)
         self.prev_gv = torch.zeros_like(self.vbias)
-        self.generator = torch.Generator(device='cpu').manual_seed(17)
+        self.generator = torch.Generator(device=self.device).manual_seed(17)
 
     def prop_up(self, vis):
         return torch.sigmoid(vis @ self.weights + self.hbias)
