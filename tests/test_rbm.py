@@ -9,8 +9,9 @@ state names, constructor and cdk_fun(vis, masks, **options) -> callable API.
 If F6 changes that factory signature, adapt train() here. Sampling must call
 torch.bernoulli; we replace that operation, not the model's sampling methods,
 so normalization and the complete CD path are still exercised. No RNG seed or
-random-number sequence is part of the contract. These tests preserve F10–F12
-quirks until those features deliberately update the oracle and expectations.
+random-number sequence is part of the contract. The oracle and expectations
+include F10 velocity momentum; F11–F12
+quirks remain until those features deliberately update them.
 """
 
 from contextlib import contextmanager
@@ -192,12 +193,28 @@ class RBMParityChecks:
     def test_update_defaults(self):
         self.check_updates({})
 
-    def test_update_with_decay_and_raw_gradient_momentum(self):
+    def test_update_with_decay_and_velocity_momentum(self):
         self.check_updates(dict(w_lr=.03, v_lr=.02, h_lr=.04, decay=.07, momentum=.6))
 
-    def test_reused_callable_updates_gradient_memory(self):
+    def test_reused_callable_updates_velocity_memory(self):
         self.check_updates(dict(w_lr=.03, v_lr=.02, h_lr=.04, decay=.07, momentum=.6),
-                           steps=2)
+                           steps=3)
+
+    def test_velocity_survives_new_factory_and_learning_rate_changes(self):
+        expected = tuple(a.copy() for a in self.initial)
+        schedules = [(.03, .02, .04, .6), (0., 0., 0., .5), (.01, .04, .02, 0.)]
+        with self.backend.fixed_samples(
+                [self.hidden, self.negative, self.last_hidden] * len(schedules)):
+            for w_lr, v_lr, h_lr, momentum in schedules:
+                options = dict(w_lr=w_lr, v_lr=v_lr, h_lr=h_lr,
+                               decay=.07, momentum=momentum)
+                h2p = reference.prop_up(self.negative, expected[0], expected[2])
+                gradients = reference.gradient(self.visible, self.hidden,
+                                               self.negative, h2p, self.masks)
+                expected = reference.parameter_update(*expected, gradients, **options)
+                self.backend.train(self.visible, self.masks, **options)()
+                for value, target in zip(self.backend.state(), expected):
+                    self.assert_close(value, target)
 
 
 class TorchRBMParityTest(RBMParityChecks, unittest.TestCase):

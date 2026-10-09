@@ -1,9 +1,9 @@
-"""Deterministic NumPy transcription of the legacy cfrbm/rbm.py math.
+"""Deterministic NumPy reference for cfrbm/rbm.py math.
 
-This intentionally preserves the behavior preceding F10–F12. Supply binary
+This includes velocity momentum (F10), retaining the F11–F12 quirks. Supply binary
 samples explicitly; no random generator or tensor backend is needed. Arrays use
 the same batch/visible/hidden axes as CFRBM. The update returns new parameters
-and gradient memory without mutating inputs, matching simultaneous shared updates.
+and velocity memory without mutating inputs, matching simultaneous shared updates.
 """
 
 import numpy as np
@@ -51,24 +51,20 @@ def gradient(v1, h1, v2, h2p, masks):
 def parameter_update(weights, vbias, hbias, prev_gw, prev_gv, prev_gh,
                      gradients, w_lr=0.000021, v_lr=0.000025,
                      h_lr=0.000025, decay=0.0, momentum=0.0):
-    """One cdk_fun update, returning (weights, vbias, hbias, gw, gv, gh).
+    """Return parameters and velocities (historical prev_g* state names).
 
-    Memory stores raw gradients, with decay included in gw, not the parameter
-    steps (F10). Decay applies only to weights. All six outputs are float32,
-    just like cast32 in the original shared-variable updates.
+    Decay applies only to weights, before learning-rate scaling. Return new
+    float32 arrays without mutating the supplied parameters or velocities.
     """
     W, V, H = gradients
     if decay:
         W = W - decay * weights
-
-    return (
-        np.asarray(weights + (momentum * prev_gw) + (W * w_lr),
-                   dtype=np.float32),
-        np.asarray(vbias + (momentum * prev_gv) + (V * v_lr),
-                   dtype=np.float32),
-        np.asarray(hbias + (momentum * prev_gh) + (H * h_lr),
-                   dtype=np.float32),
-        np.array(W, dtype=np.float32, copy=True),
-        np.array(V, dtype=np.float32, copy=True),
-        np.array(H, dtype=np.float32, copy=True),
-    )
+    velocities = tuple(np.asarray(momentum * previous + rate * gradient,
+                                  dtype=np.float32)
+                       for previous, rate, gradient in
+                       zip((prev_gw, prev_gv, prev_gh), (w_lr, v_lr, h_lr),
+                           (W, V, H)))
+    parameters = tuple(np.asarray(parameter + velocity, dtype=np.float32)
+                       for parameter, velocity in
+                       zip((weights, vbias, hbias), velocities))
+    return parameters + velocities

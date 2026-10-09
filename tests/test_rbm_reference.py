@@ -1,4 +1,4 @@
-"""Hand-calculated checks of the legacy oracle; backend parity belongs to F5."""
+"""Hand-calculated checks of the NumPy oracle; backend parity belongs to F5."""
 
 import unittest
 
@@ -51,7 +51,7 @@ class RBMReferenceTest(unittest.TestCase):
         assert_allclose(gv, [.5, -.5, -.5, 0, 0])
         assert_allclose(gh, [.075, -.075])
 
-    def test_update_decay_raw_gradient_momentum_and_float32_cast(self):
+    def test_update_decay_velocity_momentum_and_float32_cast(self):
         weights = np.array([[1., -2.], [3., -4.]])
         vbias = np.array([.5, -.5])
         hbias = np.array([1., -1.])
@@ -64,7 +64,7 @@ class RBMReferenceTest(unittest.TestCase):
         before = [a.copy() for a in (*inputs, *gradients)]
         expected = ([[1.29, -1.78], [3.07, -4.76]],
                     [.9, -1.], [1.6, -1.8],
-                    [[1.9, 4.2], [-2.3, -3.6]], [1., -2.], [3., -4.])
+                    [[.29, .22], [.07, -.76]], [.4, -.5], [.6, -.8])
 
         result = reference.parameter_update(
             *inputs, gradients, w_lr=.1, v_lr=.2, h_lr=.3,
@@ -86,8 +86,19 @@ class RBMReferenceTest(unittest.TestCase):
         result = reference.parameter_update(*inputs, gradients)
         for actual, target in zip(result[:3], [1.000042, 1.000075, 1.0001]):
             assert_allclose(actual, target, rtol=1e-7)
-        for actual, target in zip(result[3:], gradients):
-            assert_array_equal(actual, target)
+        for actual, target in zip(result[3:], [0.000042, 0.000075, 0.0001]):
+            assert_allclose(actual, target, rtol=1e-7)
+
+    def test_velocity_accumulates_steps_and_decays_with_zero_learning_rate(self):
+        state = tuple(np.zeros(shape) for shape in [(1, 1), (1,), (1,)] * 2)
+        gradients = tuple(np.full(shape, 2.) for shape in [(1, 1), (1,), (1,)])
+        for rate, parameter, velocity in [(.1, .2, .2), (.1, .5, .3), (0., .65, .15)]:
+            state = reference.parameter_update(
+                *state, gradients, w_lr=rate, v_lr=rate, h_lr=rate, momentum=.5)
+            for actual in state[:3]:
+                assert_allclose(actual, parameter, rtol=1e-6)
+            for actual in state[3:]:
+                assert_allclose(actual, velocity, rtol=1e-6)
 
 
 if __name__ == '__main__':

@@ -1,4 +1,4 @@
-"""PyTorch RBM preserving the legacy contrastive-divergence update rule."""
+"""PyTorch RBM with contrastive divergence and velocity momentum."""
 
 import numpy as np
 import torch
@@ -35,6 +35,7 @@ class CFRBM:
         self.weights = torch.tensor(initial_weights, dtype=torch.float32, device=self.device)
         self.vbias = torch.tensor(initial_vbias, dtype=torch.float32, device=self.device)
         self.hbias = torch.tensor(initial_hbias, dtype=torch.float32, device=self.device)
+        # Historical prev_g* names now hold parameter velocities, not gradients.
         self.prev_gw = torch.zeros_like(self.weights)
         self.prev_gh = torch.zeros_like(self.hbias)
         self.prev_gv = torch.zeros_like(self.vbias)
@@ -76,7 +77,8 @@ class CFRBM:
         """Return train(batch, masks); factory inputs are compatibility placeholders.
 
         As in the legacy implementation, CD-k computes its gradient from the
-        final transition, and momentum remembers raw gradients, not velocity.
+        final transition. Momentum retains the learning-rate-scaled parameter
+        step across calls, including calls from a new epoch factory.
         """
         @torch.no_grad()
         def train(batch, batch_masks):
@@ -87,13 +89,14 @@ class CFRBM:
             if decay:
                 W = W - decay * self.weights
 
-            # Compute gradients before mutating state; keep all tensor identities.
-            self.weights.copy_(self.weights + momentum * self.prev_gw + W * w_lr)
-            self.vbias.copy_(self.vbias + momentum * self.prev_gv + V * v_lr)
-            self.hbias.copy_(self.hbias + momentum * self.prev_gh + H * h_lr)
-            self.prev_gw.copy_(W)
-            self.prev_gv.copy_(V)
-            self.prev_gh.copy_(H)
+            # Weight decay is part of the gradient before learning-rate scaling.
+            # Preserve state identities and retain the actual step for momentum.
+            self.prev_gw.copy_(momentum * self.prev_gw + w_lr * W)
+            self.prev_gv.copy_(momentum * self.prev_gv + v_lr * V)
+            self.prev_gh.copy_(momentum * self.prev_gh + h_lr * H)
+            self.weights.add_(self.prev_gw)
+            self.vbias.add_(self.prev_gv)
+            self.hbias.add_(self.prev_gh)
 
         return train
 
