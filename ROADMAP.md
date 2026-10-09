@@ -151,8 +151,38 @@ Planned. Replace Theano with PyTorch and keep the training behavior the same. Ex
 
 Provisional. Fix the training bugs that v1.0 kept on purpose. Make each fix its own change and compare it with the v1.0 MAE/RMSE baseline from F9. Exit criterion: each fix has its own before/after RMSE recorded. Depends on F9.
 
-- [ ] **F10 — Fix the momentum update.** `prev_gw`, `prev_gv` and `prev_gh` store the raw gradient, not the step taken, so `momentum * prev_g` is about 1000× larger than `lr * grad` (`cfrbm/rbm.py:125,133`). Store the velocity instead, `v = momentum*v + lr*grad`, and add it to the parameters. Acceptance: an updated F4 reference and parity test, and before/after RMSE recorded.
-- [ ] **F11 — Remove the `h1` factor from the negative-phase gradient.** Because `v1h1_mask` is applied to the negative-phase term, it gets multiplied by `h1`. Mask that term only by the observed ratings. Acceptance: an updated reference and test, and before/after RMSE recorded.
+- [x] **F10 — Fix the momentum update.** `prev_gw`, `prev_gv` and `prev_gh` store the raw gradient, not the step taken, so `momentum * prev_g` is about 1000× larger than `lr * grad` (`cfrbm/rbm.py:125,133`). Store the velocity instead, `v = momentum*v + lr*grad`, and add it to the parameters. Acceptance: an updated F4 reference and parity test, and before/after RMSE recorded.
+
+  | Item | Content |
+  | --- | --- |
+  | Status | Done |
+  | Timestamp | 2026-10-10 |
+  | Complexity | M |
+  | Details | Clear formula; estimated and changed four shared code/test files across RBM updates, NumPy reference and parity/regression checks, plus six validation files and tracking. Historical prev_g* state now stores velocities; parameters add those steps in place, preserving weight-only decay and state across epoch factories. Resolved comparison ambiguity with the verified F9 CPU seed-17 baseline. |
+  | Commit | `471ee2a84ec70c3afcbbb32985d4ef91c031f4f4` — implements F10 and records its RMSE evidence. |
+  | Validation | 31 tests ran: 29 passed, 2 unavailable-accelerator skips. Updated F4 reference and parity cover repeated velocities, decay, zero/changed learning rates and new factories. Completed 100 CPU epochs: final RMSE 1.066829754 → 1.155391569; MAE 0.793113878 → 0.897867621. Best RMSE 1.100463453 at epoch 40. Log/JSON, input/environment and commit source-hash checks passed; see validation/f10. Roadmap validator and git diff --check passed. |
+  | Limitation | Corrected momentum worsens final RMSE under unchanged hyperparameters and misses F9's 0.95–1.0 target; settings were not retuned. |
+  | Limitation | One CPU seed only; CUDA and MPS validation skipped because unavailable in the sandbox. |
+  | Limitation | Existing rounded evaluator scores 19,837 of 20,000 ratings; unknown-movie handling skips 163 ratings. |
+  | Next step | Tune learning rates and training duration on a validation split after the correctness changes, then repeat the controlled RMSE comparison. |
+  | Next step | Revalidate velocity updates and training on CUDA and MPS when available. |
+
+- [x] **F11 — Remove the `h1` factor from the negative-phase gradient.** Because `v1h1_mask` is applied to the negative-phase term, it gets multiplied by `h1`. Mask that term only by the observed ratings. Acceptance: an updated reference and test, and before/after RMSE recorded.
+
+  | Item | Content |
+  | --- | --- |
+  | Status | Done |
+  | Timestamp | 2026-10-10 |
+  | Complexity | M |
+  | Details | Clear formula; estimated and changed four shared code/test files across RBM gradients, NumPy reference and parity/regression checks, plus four validation files and tracking. Both weight-gradient phases use observed-rating masks; the negative term no longer multiplies by h1. Bias gradients are unchanged. Resolved comparison ambiguity as F10 → F11, also reporting cumulative change from F9. |
+  | Commit | `f4430eb5d8ff2d6c3efc970afcf4c5e9b426c5b3` — implements F11 and records its RMSE evidence. |
+  | Validation | 33 tests ran: 31 passed, 2 unavailable-accelerator skips. Updated reference/parity and hand-derived zero-h1 regression pass; unobserved negatives remain masked. Completed 100 CPU epochs: final RMSE 1.155391569 → 1.082427337; MAE 0.897867621 → 0.817260674. Best RMSE at epoch 100. Cumulative RMSE versus F9: +0.015597582. Log/JSON, input/environment and commit source-hash checks passed; see validation/f11. Roadmap validator and git diff --check passed. |
+  | Limitation | Final RMSE remains above F9's 1.066829754 baseline and 0.95–1.0 target under unchanged hyperparameters. |
+  | Limitation | Sequential comparison on top of F10, one CPU seed only; an F11-only ablation with legacy momentum and accelerator accuracy are unverified. |
+  | Limitation | Existing rounded evaluator scores only 19,837 of 20,000 ratings; visible sampling still retains the F12 behavior. |
+  | Next step | Repeat corrected-model evaluation across seeds after F12, using a validation split to choose hyperparameters. |
+  | Next step | Correct unknown-movie evaluation handling and rerun baseline and corrected models with full test-coverage reporting. |
+
 - [ ] **F12 — Softmax visible units.** Replace the independent Bernoulli sampling of normalized sigmoids with a softmax plus categorical sampling over the 5 rating units, as in the RBM-CF paper. Acceptance: each sampled visible group is exactly one-hot, and before/after RMSE recorded.
 - [ ] **F13 — Vectorize data preparation.** Profiles and masks are rebuilt every epoch with `list.index()` inside nested loops (`cfrbm/user_based.py:81-92`). Build ID→index dicts and precompute dense or sparse arrays once. Acceptance: identical batches on a fixed seed and a measurable speedup per epoch.
 - [ ] **F14 — Deduplicate the user- and item-based runners.** `cfrbm/user_based.py` and `cfrbm/item_based.py` are near-identical. Merge them into one runner with an orientation flag, and use the config's `batch_size` everywhere (`item_based` hardcodes 10). Acceptance: both modes run from one module with the same results as before. Depends on F13.
