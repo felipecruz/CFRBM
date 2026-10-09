@@ -19,7 +19,7 @@ Planned. Port the code to Python 3 without touching Theano or the model math, in
   | Timestamp | 2026-10-10 |
   | Complexity | S |
   | Details | Clear specification; estimated three Python files across utilities and two runners, plus roadmap tracking. Replaced xrange and used integer division in the reshape and both levels of schedule indexing, preserving Python 2 behavior. |
-  | Commit | `217992a732f3149c7d8be4b26183ae9b9c35f316` — implements F1. |
+  | Commit | `217992a732f3149c7d8be4b26183ae9b9c35f316` — implements F1.; `5562fd863d22572bcc53fa39a5597c4cd44b6d21` |
   | Validation | Python 3.12.2: make test passed all 4 existing tests. Isolated AST checks of both get_index functions passed integer-type, schedule-boundary, and fallback cases. Roadmap validator and git diff --check passed. |
   | Limitation | Full training remains unverified; legacy Theano dependencies and runner imports are unchanged. |
   | Limitation | Runner dictionary-key views remain incompatible with chunker's sequence slicing on Python 3. |
@@ -33,12 +33,24 @@ Planned. Port the code to Python 3 without touching Theano or the model math, in
   | Timestamp | 2026-10-10 |
   | Complexity | S |
   | Details | Clear specification with no ambiguities; estimated one Python file in the item-based runner, plus roadmap tracking. The runner now loops over experiments and their configurations like user_based, retaining item-based dataset orientation. |
-  | Commit | `2988520d690d061e19c4007b96885482593187bc` — implements F2. |
+  | Commit | `2988520d690d061e19c4007b96885482593187bc` — implements F2.; `f59c3fc060af5f23e00a8ebd728b0cd9221273cd` |
   | Validation | Python 3.12.2: isolated entry-point checks reproduced the original TypeError, then passed with the real ubased.json reader, multiple experiments/configurations, and an empty list; dataset loading and training were mocked. make test passed all 4 tests. Roadmap validator and git diff --check passed. |
   | Limitation | Full CLI training remains unverified because of existing legacy Theano/import dependencies and Python 3 dictionary-key slicing issues. |
   | Next step | After the existing dependency/import and key-view compatibility work, validate item-based training end to end. |
 
-- [ ] **F3 — Make the package importable and declare dependencies.** Switch to package-relative imports (`from .rbm import CFRBM`) so the scripts run as `python -m cfrbm.user_based`, and add a `requirements.txt` (numpy, and torch from v1.0 on). Acceptance: `python -m cfrbm.user_based ubased.json` gets past its imports, and the tests import `cfrbm.*` cleanly.
+- [x] **F3 — Make the package importable and declare dependencies.** Switch to package-relative imports (`from .rbm import CFRBM`) so the scripts run as `python -m cfrbm.user_based`, and add a `requirements.txt` (numpy, and torch from v1.0 on). Acceptance: `python -m cfrbm.user_based ubased.json` gets past its imports, and the tests import `cfrbm.*` cleanly.
+
+  | Item | Content |
+  | --- | --- |
+  | Status | Done |
+  | Timestamp | 2026-10-10 |
+  | Complexity | S |
+  | Details | Clear import scope; estimated five implementation files across two runners, dependencies and launch documentation, plus tracking. Both runners use package-relative imports; README and Makefile use module execution. requirements.txt declares numpy and the current Theano backend, interpreting torch from v1.0 as a future dependency. |
+  | Commit | `17ed0c56883e49d68ac89d07b97a8cf6a9e2ee31` — implements F3. |
+  | Validation | Python 3.12.2: make test passed all 4 tests. With only Theano stubbed, all six cfrbm modules imported and both module entry points parsed ubased.json and reached dataset loading. make -n run, roadmap validator and git diff --check passed. |
+  | Limitation | The real user_based CLI still fails during Theano import because collections.MutableMapping is unavailable on Python 3.12; the full import acceptance check is not met in this environment. |
+  | Limitation | Training remains unverified; the configured ml-100k/u1.base file is absent. |
+  | Next step | During F6/F8, replace Theano with torch in requirements.txt and rerun unmocked package imports and both CLI entry points on Python 3.12. |
 
 ## v0.2 — Lock in current RBM behavior
 
