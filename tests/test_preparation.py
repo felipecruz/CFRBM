@@ -12,7 +12,7 @@ from unittest.mock import patch
 import numpy as np
 import torch
 
-from cfrbm import item_based, user_based
+from cfrbm import item_based, runner, user_based
 from cfrbm.preparation import PreparedProfiles
 from cfrbm.rbm import CFRBM
 from cfrbm.utils import chunker, expand
@@ -129,8 +129,8 @@ class PreparationTest(unittest.TestCase):
                             return train
 
                     np.random.seed(17)
-                    with patch.object(module, 'PreparedProfiles', preparation), \
-                            patch.object(module, 'CFRBM', RecordingRBM), \
+                    with patch.object(runner, 'PreparedProfiles', preparation), \
+                            patch.object(runner, 'CFRBM', RecordingRBM), \
                             redirect_stdout(io.StringIO()):
                         module.run('test', dataset, config, users, movies, tests,
                                    None, '\t', device='cpu')

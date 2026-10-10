@@ -35,11 +35,13 @@ def select_device(device=None):
     raise ValueError(f'Unsupported device {device!r}; use auto, cpu, mps or cuda[:index]')
 
 
-def parse_args(argv=None):
+def parse_args(argv=None, *, orientation='user'):
     parser = argparse.ArgumentParser(description='Train a collaborative-filtering RBM')
     parser.add_argument('experiment', help='path to the experiment JSON file')
     parser.add_argument('--device', default='auto', metavar='DEVICE',
                         help='auto (default: CUDA, then MPS, then CPU), cpu, mps or cuda[:index]')
+    parser.add_argument('--orientation', choices=('user', 'item'), default=orientation,
+                        help='profile orientation (default: %(default)s)')
     args = parser.parse_args(argv)
     try:
         args.device = select_device(args.device)

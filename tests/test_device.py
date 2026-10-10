@@ -129,10 +129,13 @@ class DeviceTrainingTest(unittest.TestCase):
                 name='device', train_path=str(train), test_path=str(test),
                 sep='\t', configs=[config])]}))
             result = directory / 'smoke_device.json'
-            for module in ('cfrbm.user_based', 'cfrbm.item_based'):
+            for module, options in (('cfrbm.user_based', []),
+                                    ('cfrbm.item_based', []),
+                                    ('cfrbm.runner', ['--orientation', 'user']),
+                                    ('cfrbm.runner', ['--orientation', 'item'])):
                 for device in devices:
                     with self.subTest(module=module, device=device):
-                        command = [sys.executable, '-m', module, str(experiment)]
+                        command = [sys.executable, '-m', module, str(experiment), *options]
                         if device != 'auto':  # Also test the default CLI selection.
                             command += ['--device', device]
                         completed = subprocess.run(command, cwd=directory, env=env,

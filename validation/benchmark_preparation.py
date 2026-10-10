@@ -21,7 +21,7 @@ import types
 import numpy as np
 import torch
 
-from cfrbm import item_based, user_based
+from cfrbm import runner
 from cfrbm.dataset import load_dataset
 from cfrbm.preparation import PreparedProfiles
 from cfrbm.rbm import CFRBM
@@ -58,7 +58,7 @@ def compare_batches(old, new):
             np.testing.assert_array_equal(a, b, strict=True)
 
 
-def runner_trial(module, users, movies, tests, config):
+def runner_trial(module, users, movies, tests, config, **run_options):
     models = []
     batches_hash = hashlib.sha256()
 
@@ -94,7 +94,7 @@ def runner_trial(module, users, movies, tests, config):
             np.random.seed(17)
             started = time.perf_counter()
             module.run('parity', ROOT / 'ml-100k/u1.base', config, users, movies,
-                       tests, None, '\t', device='cpu')
+                       tests, None, '\t', device='cpu', **run_options)
             elapsed = time.perf_counter() - started
             metrics = json.loads(Path(config['name'] + '_parity.json').read_text())['results']
     finally:
@@ -124,7 +124,7 @@ def main():
                    source_sha256={str(p.relative_to(ROOT)): digest(p)
                                   for p in sorted((ROOT / 'cfrbm').glob('*.py'))},
                    orientations={})
-    for mode, module in (('user', user_based), ('item', item_based)):
+    for mode in ('user', 'item'):
         users, movies, tests = load_dataset(ROOT / 'ml-100k/u1.base',
                                            ROOT / 'ml-100k/u1.test', '\t', mode == 'user')
         visible = movies if mode == 'user' else users
@@ -157,7 +157,7 @@ def main():
         baseline.__package__ = 'cfrbm'
         exec(compile(source, f'<baseline-{mode}>', 'exec'), baseline.__dict__)
         before = runner_trial(baseline, users, movies, tests, config)
-        after = runner_trial(module, users, movies, tests, config)
+        after = runner_trial(runner, users, movies, tests, config, orientation=mode)
         for key in ('metrics', 'state_sha256', 'batches_sha256'):
             assert before[key] == after[key], (mode, key)
         results['orientations'][mode] = dict(

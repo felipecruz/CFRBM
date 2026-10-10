@@ -37,13 +37,18 @@ make run
 or 
 
 ```sh
-python -m cfrbm.user_based ubased.json
+python -m cfrbm.runner ubased.json --orientation user
 ```
 
 Run these commands from the repository root. For item-based experiments, use
-`python -m cfrbm.item_based ubased.json`.
+`python -m cfrbm.runner ubased.json --orientation item`. The orientation defaults
+to `user`; `make run ORIENTATION=item` selects item mode with Make. Both modes use the configuration's `batch_size` for training and
+evaluation. The previous `cfrbm.user_based` and `cfrbm.item_based` module commands
+and Python `run(...)` functions remain available as compatibility wrappers.
+Item-based configurations with a batch size other than 10 now use that size,
+which can change their training results.
 
-Both runners automatically select CUDA, then Apple MPS, then CPU. To override
+The shared runner automatically selects CUDA, then Apple MPS, then CPU. To override
 this choice, append `--device cpu`, `--device mps`, or `--device cuda:0` to the
 module command, or use `make run DEVICE=cpu`. An unavailable device produces
 an error. To use the virtual environment without activating it, run
