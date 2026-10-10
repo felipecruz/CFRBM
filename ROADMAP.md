@@ -191,7 +191,7 @@ Provisional. Fix the training bugs that v1.0 kept on purpose. Make each fix its 
   | Timestamp | 2026-10-10 |
   | Complexity | M |
   | Details | Clear sampling requirement; estimated and changed six model/reference/test files plus validation tooling, evidence and tracking. Visible logits now use grouped softmax and seeded categorical draws, yielding exactly one-hot rating groups. Resolved comparison ambiguity with F11 as the immediate baseline under the same 100-epoch CPU seed-17 protocol. |
-  | Commit | `10778668ddc378739f38855e84e609e97f79c183` — implements F12 and records its RMSE evidence. |
+  | Commit | `10778668ddc378739f38855e84e609e97f79c183` — implements F12 and records its RMSE evidence.; `34a0ce7b2419fca20fef771afe05232506603b3f` |
   | Validation | Full suite: 34 passed, 2 sandbox accelerator skips. Separate device suite: CPU/MPS passed, CUDA skipped. Reference/parity, 40,000 one-hot groups, categorical frequencies, extreme logits, RNG isolation/replay, CD-2/CD-3 and both CLIs pass. All 100 epochs completed: RMSE 1.082427337 → 1.088789011; MAE 0.817260674 → 0.819982860. Best RMSE 1.085798560 at epoch 99. Log/JSON, inputs, environment and implementation source hashes verified; see validation/f12. Roadmap validator and git diff --check passed. |
   | Limitation | Final RMSE regressed by 0.006361675 versus F11 and remains above F9's 1.066829754 baseline and 0.95–1.0 target under unchanged hyperparameters. |
   | Limitation | One CPU seed and sequential comparison on top of F10/F11; other seeds and full accelerator MovieLens accuracy are unverified. CUDA was unavailable. |
@@ -208,7 +208,7 @@ Provisional. Fix the training bugs that v1.0 kept on purpose. Make each fix its 
   | Timestamp | 2026-10-10 |
   | Complexity | M |
   | Details | Clear parity/speed requirements; estimated and changed seven implementation/test/evidence files across both runners, shared preparation and validation, plus tracking. Precompute dense float32 profiles/masks once with ID maps; epochs slice/gather cached rows. Preserve ordering, duplicate ratings, test-only profile insertion and evaluation skips; consolidation remains F14. |
-  | Commit | `63f66c9adb737cff11547fa7f4de12e7e42424ef` — implements F13 and records parity/timing evidence. |
+  | Commit | `63f66c9adb737cff11547fa7f4de12e7e42424ef` — implements F13 and records parity/timing evidence.; `9e8fa056926bdf7087b8bc92bdf5da3b181527bf` |
   | Validation | 39 tests: 37 passed, 2 unavailable-accelerator skips. MovieLens u1 seed-17 CPU: exact batches over two epochs and exact three-epoch metrics, model and RNG state versus original runners in both orientations. Median preparation per epoch: user 6.747701 → 0.000384 s; item 5.410540 → 0.001736 s. Three-epoch runs: 23.106 → 1.994 s (11.59×) and 18.629 → 3.004 s (6.20×). Source/input hashes, roadmap validator and git diff --check passed; see validation/f13. |
   | Limitation | Dense host caches use 40 bytes per profile/visible-ID pair: 59.35 MiB user-based and 60.51 MiB item-based on u1, plus construction temporaries and model/batch memory. |
   | Limitation | Timing evidence covers one host, three preparation samples and one three-epoch CPU run per orientation; accelerator performance and full 100-epoch parity are unverified. Fixed hash seed is still needed for cross-process ID ordering. |
@@ -217,3 +217,15 @@ Provisional. Fix the training bugs that v1.0 kept on purpose. Make each fix its 
   | Next step | Benchmark accelerator execution and verify full 100-epoch parity when those workloads are needed. |
 
 - [x] **F14 — Deduplicate the user- and item-based runners.** `cfrbm/user_based.py` and `cfrbm/item_based.py` are near-identical. Merge them into one runner with an orientation flag, and use the config's `batch_size` everywhere (`item_based` hardcodes 10). Acceptance: both modes run from one module with the same results as before. Depends on F13.
+
+  | Item | Content |
+  | --- | --- |
+  | Status | Done |
+  | Timestamp | 2026-10-10 |
+  | Complexity | M |
+  | Details | Clear scope; estimated eight code/test/documentation files plus evidence and tracking. One shared runner selects user or item orientation; old module commands and run APIs delegate to it. Both training and evaluation use config batch_size. Resolved parity ambiguity as matching batch sizes: item configurations other than 10 intentionally change behavior. |
+  | Commit | `ff45dd1a77d9794a1beead4dc8ac4dc70bce849c` — implements F14 and records parity evidence. |
+  | Validation | 42 tests ran: 40 passed, 2 unavailable-accelerator skips. Both shared CLI modes and compatibility entry points pass. Seed-17 MovieLens CPU: exact three-epoch batch, metric, model and RNG parity in both modes at size 10; size 7 matches original user runner and item baseline with only its hardcoded sizes corrected. Sizes 1/4/10/20, short batches, cold profiles and experiment/config dispatch covered. See validation/f14. Roadmap validator, Make dry run and git diff --check passed. |
+  | Limitation | Numerical parity covers three CPU epochs; full 100-epoch and accelerator parity were not revalidated. |
+  | Limitation | Existing rounded evaluation and unknown-ID skips remain; identical experiment/config names still overwrite the same result file across orientations. |
+  | Next step | Validate full 100-epoch and accelerator parity when those workloads are needed. |
