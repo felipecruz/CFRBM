@@ -2,6 +2,54 @@
 
 This is an implementation of the RBM model for the collaborative filtering task.
 
+## A short story
+
+CFRBM started in July 2016, when deep learning in Python meant
+[Theano](https://github.com/Theano/Theano): you described a symbolic graph,
+compiled it with `theano.function`, and hoped `THEANO_FLAGS=device=gpu` would
+find your CUDA card. Restricted Boltzmann Machines for collaborative filtering,
+the model from Salakhutdinov, Mnih and Hinton's Netflix Prize paper, had few
+open implementations at the time. This repository was one of the first: user-
+and item-based RBMs with softmax-style rating units, contrastive divergence
+written out by hand, and a GPU path for MovieLens experiments.
+
+Then Theano was discontinued, Python 2 reached end of life, and the code
+stopped running on any modern machine.
+
+In 2026 the project was brought back with LLM coding agents. The work followed
+a versioned plan in [`ROADMAP.md`](ROADMAP.md), carried out one item at a time,
+with each step tested and checked against measurements:
+
+1. **Python 3 port.** `xrange`, integer division and the old import style were
+   fixed without touching the model.
+2. **Locking in the math.** A NumPy reference implementation of the CD update
+   was written first, so the new backend could be checked against it on fixed
+   inputs.
+3. **PyTorch backend.** The Theano graph became plain PyTorch tensors, with
+   automatic selection of CUDA, Apple MPS or CPU.
+4. **Fixing old bugs.** With parity established, the original training quirks
+   were corrected: momentum now carries the real update step, the
+   negative-phase gradient is masked correctly, and visible units use a true
+   softmax with categorical sampling.
+5. **Speed.** Rating profiles are now built once instead of every epoch with
+   Python list searches. Epochs went from about 8 seconds to well under one on
+   a laptop CPU.
+
+The original references are kept below. Validation runs for each step are
+recorded under [`validation/`](validation).
+
+## Quick start (notebook)
+
+[`notebooks/cfrbm_movielens.ipynb`](notebooks/cfrbm_movielens.ipynb) installs
+this package from GitHub, downloads MovieLens 100k, trains the user-based model
+and plots test MAE/RMSE for each epoch. The log shows a timestamp, records per
+second and ratings per second for every epoch. You can also install the package
+directly:
+
+```sh
+pip install "cfrbm @ git+https://github.com/felipecruz/CFRBM.git@main"
+```
+
 ## Limitation
 
 This code works, so far, only with ratings from 1 to 5.
