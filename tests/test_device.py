@@ -91,6 +91,12 @@ class DeviceTrainingTest(unittest.TestCase):
         self.assertTrue(torch.isfinite(probabilities).all().item())
         torch.testing.assert_close(probabilities.reshape(-1, 5).sum(1),
                                    torch.ones(128, device=model.device))
+        sample, probabilities = model.sample_visible(model.prop_up(visible))
+        self.assertEqual(sample.device.type, model.device.type)
+        self.assertEqual(sample.dtype, torch.float32)
+        self.assertTrue(((sample == 0) | (sample == 1)).all().item())
+        torch.testing.assert_close(sample.reshape(-1, 5).sum(1),
+                                   torch.ones(128, device=model.device), rtol=0, atol=0)
 
     def test_cpu_training(self):
         self.check_training('cpu')

@@ -31,8 +31,8 @@ def digest(path):
 
 def main():
     feature = sys.argv[1]
-    if feature not in ('f10', 'f11'):
-        raise SystemExit('Expected f10 or f11')
+    if feature not in ('f10', 'f11', 'f12'):
+        raise SystemExit('Expected f10, f11 or f12')
     output = ROOT / 'validation' / feature
     output.mkdir(exist_ok=True)
     if (output / 'run.json').exists():

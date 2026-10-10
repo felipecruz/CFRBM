@@ -19,17 +19,17 @@ class RBMReferenceTest(unittest.TestCase):
 
         assert_allclose(reference.prop_up(visible, weights, hbias),
                         [[.75, .1], [.75, .5]])
-        assert_allclose(reference.prop_down(hidden, weights, vbias),
-                        [[.75, .75, .1], [.5, .9, .1]])
+        assert_allclose(reference.prop_down(hidden, weights, vbias, k=3),
+                        [[27/55, 27/55, 1/55], [9/91, 81/91, 1/91]])
 
-    def test_visible_normalization_and_fixed_non_one_hot_samples(self):
+    def test_visible_softmax_and_fixed_one_hot_samples(self):
         # Two users and two rating groups catch normalization across wrong axes.
         probabilities = np.array([.1, .2, .3, .4, .5, .8, .6, .4, .2, .1])
-        vbias = np.log(probabilities / (1 - probabilities))
+        vbias = np.log(probabilities)
         weights = np.zeros((10, 2))
         hidden = np.array([[1., 0.], [0., 1.]])
-        samples = np.array([[1, 1, 0, 0, 0, 0, 0, 0, 0, 0],
-                            [0, 0, 0, 0, 0, 1, 1, 1, 0, 0]])
+        samples = np.array([[1, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+                            [0, 0, 1, 0, 0, 1, 0, 0, 0, 0]])
         expected = [[1/15, 2/15, 3/15, 4/15, 5/15,
                      8/21, 6/21, 4/21, 2/21, 1/21]] * 2
 

@@ -48,14 +48,20 @@ class CFRBM:
         activations = self.prop_up(vis)
         return torch.bernoulli(activations, generator=self.generator), activations
 
-    def prop_down(self, h):
-        return torch.sigmoid(h @ self.weights.T + self.vbias)
+    def prop_down(self, h, k=5):
+        """Return softmax probabilities within each consecutive rating group."""
+        if k <= 0 or self.num_visible % k:
+            raise ValueError('num_visible must be divisible by a positive rating count k')
+        logits = h @ self.weights.T + self.vbias
+        return torch.softmax(logits.reshape(-1, k), dim=1).reshape_as(logits)
 
     def sample_visible(self, h, k=5):
-        activations = self.prop_down(h)
+        """Draw exactly one rating per group using the model's local generator."""
+        activations = self.prop_down(h, k=k)
         groups = activations.reshape(-1, k)
-        activations = (groups / groups.sum(dim=1, keepdim=True)).reshape_as(activations)
-        return torch.bernoulli(activations, generator=self.generator), activations
+        ratings = torch.multinomial(groups, 1, generator=self.generator)
+        samples = torch.zeros_like(groups).scatter_(1, ratings, 1)
+        return samples.reshape_as(activations), activations
 
     def contrastive_divergence_1(self, v1):
         h1, _ = self.sample_hidden(v1)

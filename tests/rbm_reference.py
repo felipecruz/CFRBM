@@ -1,7 +1,7 @@
 """Deterministic NumPy reference for cfrbm/rbm.py math.
 
-This includes velocity momentum (F10) and observed-only phase masks (F11).
-Visible sampling retains the F12 quirk. Supply binary
+This includes velocity momentum (F10), observed-only phase masks (F11), and
+softmax visible probabilities (F12). Supply binary hidden and one-hot visible
 samples explicitly; no random generator or tensor backend is needed. Arrays use
 the same batch/visible/hidden axes as CFRBM. The update returns new parameters
 and velocity memory without mutating inputs, matching simultaneous shared updates.
@@ -18,22 +18,16 @@ def prop_up(vis, weights, hbias):
     return 1.0 / (1.0 + np.exp(-(np.dot(vis, weights) + hbias)))
 
 
-def prop_down(h, weights, vbias):
-    return 1.0 / (1.0 + np.exp(-(np.dot(h, weights.T) + vbias)))
+def prop_down(h, weights, vbias, k=5):
+    logits = np.dot(h, weights.T) + vbias
+    groups = logits.reshape(-1, k)
+    exponentials = np.exp(groups - groups.max(axis=1, keepdims=True))
+    return (exponentials / exponentials.sum(axis=1, keepdims=True)).reshape(logits.shape)
 
 
 def sample_visible(h, weights, vbias, visible_sample, k=5):
-    """Return a supplied Bernoulli sample and the normalized sigmoid values.
-
-    Each consecutive group of k activations sums to one, but its independent
-    binary samples need not be one-hot. This is deliberately not a softmax.
-    """
-    activations = prop_down(h, weights, vbias)
-    k_ones = np.ones(k)
-    partitions = (
-        activations.reshape((-1, k)).sum(axis=1).reshape((-1, 1)) * k_ones
-    )
-    activations = activations / partitions.reshape(activations.shape)
+    """Return a supplied categorical one-hot sample and softmax probabilities."""
+    activations = prop_down(h, weights, vbias, k=k)
     return np.array(visible_sample, copy=True), activations
 
 

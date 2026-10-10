@@ -1,4 +1,4 @@
-"""Verify F10/F11 evidence and compare final/best scores to the preceding run.
+"""Verify F10/F11/F12 evidence and compare scores to the preceding run.
 
 Usage: .venv/bin/python validation/verify_training.py f10 [implementation-commit]
 The optional commit verifies every captured source file against Git. This
@@ -46,8 +46,7 @@ def read_run(feature):
 
 def main():
     feature = sys.argv[1]
-    assert feature in ('f10', 'f11')
-    previous = 'f9' if feature == 'f10' else 'f10'
+    previous = {'f10': 'f9', 'f11': 'f10', 'f12': 'f11'}[feature]
     baseline, _ = read_run('f9')
     before_metadata, before = read_run(previous)
     metadata, after = read_run(feature)

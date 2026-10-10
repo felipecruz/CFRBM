@@ -1,0 +1,51 @@
+{
+  "feature": "f12",
+  "parent_commit": "0bd5b764982fde6ef72fedca4c3d49b447a6704a",
+  "source_sha256": {
+    "cfrbm/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "cfrbm/dataset.py": "38c070e0a37caf0624003dfb171062e042bb810e7ef309bbdd60e33f0f8cbe06",
+    "cfrbm/device.py": "a813cbcb33b0caacd6e497611f0869b602ba627a206996c44a3e6e937bdba443",
+    "cfrbm/experiments.py": "c63f4da5f81413f5b299c5c432332734f2e96666332ce763f1ee9cd1413a8b37",
+    "cfrbm/item_based.py": "4ff4e0a171107e2202ce4a573baedda02a84c7ef415dacfd985ddbf5a185d83a",
+    "cfrbm/rbm.py": "e1af202db93374806a2556bb779ca2f8b21a854e472931c77a94def9cb94ef6e",
+    "cfrbm/user_based.py": "e33826d892d4f1389e31e872ca1811a9742e947a922b126bdf715ee55623847e",
+    "cfrbm/utils.py": "2154f1245de64844c2c739ddd468542304d4580c7ccc4de86684e7e928d9b8c3"
+  },
+  "sha256": {
+    "ubased.json": "215cc9353bac5ae3c8aa585a0c0d880f03d693eba0891587ddc9648ea8747f1c",
+    "ml-100k/u1.base": "ce253ec86c448b44fb3ba9a30d12dcfc2e9210cbde71efada3730c22e9ac212a",
+    "ml-100k/u1.test": "18c6014a4b2c7324f250a63f8904a7b16b2b19f911129e346141507b0cbac950"
+  },
+  "python": "3.12.2",
+  "platform": "macOS-27.0.1-arm64-arm-64bit",
+  "numpy": "2.5.3",
+  "torch": "2.14.1",
+  "device": "cpu",
+  "numpy_seed": 17,
+  "torch_sampling_seed": 17,
+  "environment": {
+    "PYTHONHASHSEED": "17",
+    "OMP_NUM_THREADS": "1",
+    "MKL_NUM_THREADS": "1"
+  },
+  "command": [
+    "/Users/felipecruz/Projects/CFRBM/.venv/bin/python",
+    "-u",
+    "-c",
+    "import runpy, sys, numpy as np; np.random.seed(17); sys.argv = [\"cfrbm.user_based\", \"ubased.json\", \"--device\", \"cpu\"]; runpy.run_module(\"cfrbm.user_based\", run_name=\"__main__\")"
+  ],
+  "evaluation": {
+    "train_ratings": 80000,
+    "train_users": 943,
+    "train_movies": 1650,
+    "test_ratings": 20000,
+    "scored_ratings": 19837,
+    "skipped_ratings": 163,
+    "unknown_movie_ratings": 32,
+    "rounded_predictions": true
+  },
+  "started_at": "2026-10-10T00:02:10.797719+00:00",
+  "exit_code": 0,
+  "elapsed_seconds": 778.3737684579974,
+  "finished_at": "2026-10-10T00:15:09.195262+00:00"
+}

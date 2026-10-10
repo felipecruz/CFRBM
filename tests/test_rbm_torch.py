@@ -15,6 +15,57 @@ from tests.test_rbm import STATE_NAMES, TorchAdapter
 
 
 class TorchRBMContractTest(unittest.TestCase):
+    def test_visible_softmax_is_stable_and_invariant_to_group_offsets(self):
+        model = CFRBM(10, 2, device="cpu")
+        model.weights.zero_()
+        # Saturating sigmoid here would incorrectly make the first group uniform.
+        model.vbias.copy_(torch.tensor([1000., 1001., 1002., 1003., 1004.,
+                                       -1000., -1001., -1002., -1003., -1004.]))
+        hidden = torch.zeros(3, 2)
+        expected_group = np.exp(np.arange(5.) - 4)
+        expected_group /= expected_group.sum()
+        expected = np.tile(np.concatenate([expected_group, expected_group[::-1]]), (3, 1))
+        before = model.prop_down(hidden)
+        self.assertTrue(torch.isfinite(before).all().item())
+        assert_allclose(before.numpy(), expected, rtol=1e-6)
+        assert_allclose(reference.prop_down(hidden.numpy(), model.weights.numpy(),
+                                            model.vbias.numpy()), expected, rtol=1e-6)
+        model.vbias[:5].sub_(1000)
+        model.vbias[5:].add_(1000)
+        torch.testing.assert_close(model.prop_down(hidden), before, rtol=0, atol=0)
+
+    def test_visible_draws_are_one_hot_and_follow_categorical_probabilities(self):
+        model = CFRBM(10, 2, device="cpu")
+        model.weights.zero_()
+        target = torch.tensor([.05, .1, .15, .3, .4, .4, .3, .15, .1, .05])
+        model.vbias.copy_(target.log())
+        hidden = torch.zeros(20000, 2)
+        global_rng = torch.random.get_rng_state().clone()
+        sample, probabilities = model.sample_visible(hidden)
+        self.assertEqual(sample.shape, (20000, 10))
+        self.assertEqual(sample.dtype, probabilities.dtype)
+        self.assertTrue(((sample == 0) | (sample == 1)).all().item())
+        torch.testing.assert_close(sample.reshape(-1, 5).sum(1),
+                                   torch.ones(40000), rtol=0, atol=0)
+        torch.testing.assert_close(probabilities[0], target)
+        # Seeded, generous >6-sigma bound checks categorical rather than argmax draws.
+        torch.testing.assert_close(sample.mean(0), target, rtol=0, atol=.025)
+        next_sample = model.sample_visible(hidden)[0]
+        self.assertFalse(torch.equal(sample, next_sample))
+        model.generator.manual_seed(17)
+        torch.testing.assert_close(model.sample_visible(hidden)[0], sample, rtol=0, atol=0)
+        torch.testing.assert_close(torch.random.get_rng_state(), global_rng, rtol=0, atol=0)
+
+    def test_visible_groups_cannot_cross_batch_boundaries(self):
+        model = CFRBM(6, 2, device="cpu")
+        # The total number of values is divisible by five, but each row is not.
+        with self.assertRaisesRegex(ValueError, 'divisible'):
+            model.sample_visible(torch.zeros(5, 2))
+        model = CFRBM(10, 2, device="cpu")
+        for k in (0, -5, 3):
+            with self.subTest(k=k), self.assertRaises(ValueError):
+                model.sample_visible(torch.zeros(2, 2), k=k)
+
     def test_initialization_preserves_numpy_normal_and_accepts_initial_bias(self):
         rng = np.random.get_state()
         try:
@@ -70,7 +121,7 @@ class TorchRBMContractTest(unittest.TestCase):
         hidden = torch.tensor([[1., 0., 1.], [0., 1., 0.]])
         expected = reference.sample_visible(hidden.numpy(), model.weights.numpy(),
                                             model.vbias.numpy(), np.zeros((2, 10)))[1]
-        with patch.object(torch, 'bernoulli', side_effect=[hidden, torch.zeros(2, 10)] * 2) as draw:
+        with patch.object(torch, 'bernoulli', return_value=hidden) as draw:
             predict = model.predict()
             compatible_predict = model.predict(batch)
             draw.assert_not_called()
@@ -89,8 +140,8 @@ class TorchRBMContractTest(unittest.TestCase):
         identities = [(getattr(model, name), getattr(model, name).data_ptr())
                       for name in STATE_NAMES]
         v0 = np.zeros((2, 10), dtype=np.float32)
-        v1 = np.array([[1, 0, 1, 0, 0] * 2, [0, 1, 0, 0, 0] * 2], dtype=np.float32)
-        v2 = 1 - v1
+        v1 = np.array([[1, 0, 0, 0, 0] * 2, [0, 1, 0, 0, 0] * 2], dtype=np.float32)
+        v2 = np.roll(v1, 1, axis=1)
         h0 = np.array([[1, 0, 1], [0, 1, 0]], dtype=np.float32)
         h1 = 1 - h0
         masks = np.array([[1] * 10, [1] * 5 + [0] * 5], dtype=np.float32)

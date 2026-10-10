@@ -6,12 +6,11 @@ hiding regressions.
 
 TorchAdapter is the only backend-specific boundary. It assumes the existing
 state names, constructor and cdk_fun(vis, masks, **options) -> callable API.
-If F6 changes that factory signature, adapt train() here. Sampling must call
-torch.bernoulli; we replace that operation, not the model's sampling methods,
+Sampling calls torch.bernoulli for hidden units and torch.multinomial for
+visible units; we replace those operations, not the model's sampling methods,
 so normalization and the complete CD path are still exercised. No RNG seed or
 random-number sequence is part of the contract. The oracle and expectations
-include F10 velocity momentum and F11 phase
-masks. The F12 visible-sampling quirk remains.
+include F10 velocity momentum, F11 phase masks and F12 softmax visible units.
 """
 
 from contextlib import contextmanager
@@ -77,7 +76,18 @@ class TorchAdapter:
                 return kwargs['out']
             return result
 
-        with patch.object(self.torch, 'bernoulli', side_effect=bernoulli):
+        def multinomial(probabilities, num_samples, **kwargs):
+            sample = next(queue)
+            groups = sample.reshape(-1, probabilities.shape[1])
+            if num_samples != 1 or groups.shape != tuple(probabilities.shape):
+                raise AssertionError('CFRBM requested an invalid categorical sample')
+            if not np.all((groups == 0) | (groups == 1)) or not np.all(groups.sum(1) == 1):
+                raise AssertionError('Fixed visible samples must be one-hot')
+            return self.torch.as_tensor(groups.argmax(1)[:, None],
+                                        device=probabilities.device)
+
+        with patch.object(self.torch, 'bernoulli', side_effect=bernoulli), \
+                patch.object(self.torch, 'multinomial', side_effect=multinomial):
             yield
         if next(queue, None) is not None:
             raise AssertionError('CFRBM did not consume all fixed binary samples')
@@ -121,11 +131,11 @@ class RBMParityChecks:
         self.masks = np.array([[1] * 10, [1] * 5 + [0] * 5, [0] * 10],
                               dtype=np.float32)
         self.hidden = np.array([[1, 0, 1], [0, 1, 0], [1, 1, 0]], dtype=np.float32)
-        # Independent Bernoulli draws deliberately include empty and multi-hot groups.
+        # Each reconstructed movie has exactly one categorical rating.
         self.negative = np.array([
-            [1, 1, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 1, 0, 0, 1, 0, 1, 0, 0],
-            [0, 0, 0, 0, 0, 1, 1, 0, 1, 0],
+            [1, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+            [0, 0, 1, 0, 0, 1, 0, 0, 0, 0],
+            [0, 1, 0, 0, 0, 0, 0, 0, 1, 0],
         ], dtype=np.float32)
         self.last_hidden = 1 - self.hidden
         self.backend = self.adapter_factory(tuple(a.copy() for a in self.initial))
