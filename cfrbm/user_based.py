@@ -10,8 +10,9 @@ import torch
 from .rbm import CFRBM
 from .device import parse_args
 from .experiments import read_experiment
-from .utils import chunker, revert_expected_value, expand, iteration_str
+from .utils import revert_expected_value, iteration_str
 from .dataset import load_dataset
+from .preparation import PreparedProfiles
 
 
 def run(name, dataset, config, all_users, all_movies, tests, initial_v, sep, device=None):
@@ -38,6 +39,9 @@ def run(name, dataset, config, all_users, all_movies, tests, initial_v, sep, dev
         for i, line in enumerate(data):
             uid, mid, rat, timstamp = line.strip().split(sep)
             profiles[uid].append((mid, float(rat)))
+
+    prepared = PreparedProfiles(profiles, all_movies, tests)
+    del profiles
 
     print("Users and ratings loaded")
 
@@ -70,33 +74,7 @@ def run(name, dataset, config, all_users, all_movies, tests, initial_v, sep, dev
                             momentum=momentum)
         predict = rbm.predict()
 
-        for batch_i, batch in enumerate(chunker(list(profiles),
-                                                batch_size)):
-            size = min(len(batch), batch_size)
-
-            # create needed binary vectors
-            bin_profiles = {}
-            masks = {}
-            for userid in batch:
-                user_profile = [0.] * len(all_movies)
-                mask = [0] * (len(all_movies) * 5)
-
-                for movie_id, rat in profiles[userid]:
-                    user_profile[all_movies.index(movie_id)] = rat
-                    for _i in range(5):
-                        mask[5 * all_movies.index(movie_id) + _i] = 1
-
-                example = expand(np.array([user_profile])).astype('float32')
-                bin_profiles[userid] = example
-                masks[userid] = mask
-
-            profile_batch = [bin_profiles[id] for id in batch]
-            masks_batch = [masks[id] for id in batch]
-            train_batch = np.array(profile_batch).reshape(size,
-                                                          len(all_movies) * 5)
-            train_masks = np.array(masks_batch).reshape(size,
-                                                        len(all_movies) * 5)
-            train_masks = train_masks.astype('float32')
+        for train_batch, train_masks in prepared.training_batches(j, batch_size):
             train(torch.from_numpy(train_batch).to(rbm.device),
                   torch.from_numpy(train_masks).to(rbm.device))
             sys.stdout.write('.')
@@ -105,30 +83,8 @@ def run(name, dataset, config, all_users, all_movies, tests, initial_v, sep, dev
         ratings = []
         predictions = []
 
-        for batch in chunker(list(tests), batch_size):
-            size = min(len(batch), batch_size)
-
-            # create needed binary vectors
-            bin_profiles = {}
-            masks = {}
-            for userid in batch:
-                user_profile = [0.] * len(all_movies)
-                mask = [0] * (len(all_movies) * 5)
-
-                for movie_id, rat in profiles[userid]:
-                    user_profile[all_movies.index(movie_id)] = rat
-                    for _i in range(5):
-                        mask[5 * all_movies.index(movie_id) + _i] = 1
-
-                example = expand(np.array([user_profile])).astype('float32')
-                bin_profiles[userid] = example
-                masks[userid] = mask
-
-            positions = {profile_id: pos for pos, profile_id
-                         in enumerate(batch)}
-            profile_batch = [bin_profiles[el] for el in batch]
-            test_batch = np.array(profile_batch).reshape(size,
-                                                         len(all_movies) * 5)
+        for batch, test_batch in prepared.test_batches(batch_size):
+            positions = {profile_id: pos for pos, profile_id in enumerate(batch)}
             user_preds = revert_expected_value(
                 predict(torch.from_numpy(test_batch).to(rbm.device)).cpu().numpy())
             for profile_id in batch:
@@ -136,7 +92,7 @@ def run(name, dataset, config, all_users, all_movies, tests, initial_v, sep, dev
                 try:
                     for movie, rating in test_movies:
                         current_profile = user_preds[positions[profile_id]]
-                        predicted = current_profile[all_movies.index(movie)]
+                        predicted = current_profile[prepared.visible_index[movie]]
                         rating = float(rating)
                         ratings.append(rating)
                         predictions.append(predicted)

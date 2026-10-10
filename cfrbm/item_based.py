@@ -7,13 +7,12 @@ from math import sqrt
 import numpy as np
 import torch
 
-from . import utils
-
 from .rbm import CFRBM
 from .device import parse_args
 from .experiments import read_experiment
-from .utils import revert_expected_value, expand, iteration_str
+from .utils import revert_expected_value, iteration_str
 from .dataset import load_dataset
+from .preparation import PreparedProfiles
 
 
 
@@ -40,6 +39,9 @@ def run(name, dataset, config, all_users, all_movies, tests, initial_v, sep, dev
         for i, line in enumerate(data):
             uid, mid, rat, timstamp = line.strip().split(sep)
             profiles[mid].append((uid, float(rat)))
+
+    prepared = PreparedProfiles(profiles, all_users, tests)
+    del profiles
 
     print("Users and ratings loaded")
 
@@ -73,33 +75,7 @@ def run(name, dataset, config, all_users, all_movies, tests, initial_v, sep, dev
         predict = rbm.predict()
 
         batch_size = 10
-        for batch_i, batch in enumerate(utils.chunker(list(profiles),
-                                                      batch_size)):
-            size = min(len(batch), batch_size)
-
-            # create needed binary vectors
-            bin_profiles = {}
-            masks = {}
-            for movieid in batch:
-                movie_profile = [0.] * len(all_users)
-                mask = [0] * (len(all_users) * 5)
-
-                for user_id, rat in profiles[movieid]:
-                    movie_profile[all_users.index(user_id)] = rat
-                    for _i in range(5):
-                        mask[5 * all_users.index(user_id) + _i] = 1
-
-                example = expand(np.array([movie_profile])).astype('float32')
-                bin_profiles[movieid] = example
-                masks[movieid] = mask
-
-            movies_batch = [bin_profiles[id] for id in batch]
-            masks_batch = [masks[id] for id in batch]
-            train_batch = np.array(movies_batch).reshape(size,
-                                                         len(all_users) * 5)
-            train_masks = np.array(masks_batch).reshape(size,
-                                                        len(all_users) * 5)
-            train_masks = train_masks.astype('float32')
+        for train_batch, train_masks in prepared.training_batches(j, batch_size):
             train(torch.from_numpy(train_batch).to(rbm.device),
                   torch.from_numpy(train_masks).to(rbm.device))
             sys.stdout.write('.')
@@ -109,29 +85,8 @@ def run(name, dataset, config, all_users, all_movies, tests, initial_v, sep, dev
         ratings = []
         predictions = []
 
-        for batch in utils.chunker(list(tests), batch_size):
-            size = min(len(batch), batch_size)
-
-            # create needed binary vectors
-            bin_profiles = {}
-            masks = {}
-            for movieid in batch:
-                movie_profile = [0.] * len(all_users)
-                mask = [0] * (len(all_users) * 5)
-
-                for userid, rat in profiles[movieid]:
-                    movie_profile[all_users.index(userid)] = rat
-                    for _i in range(5):
-                        mask[5 * all_users.index(userid) + _i] = 1
-
-                example = expand(np.array([movie_profile])).astype('float32')
-                bin_profiles[movieid] = example
-                masks[movieid] = mask
-
-            positions = {movie_id: pos for pos, movie_id in enumerate(batch)}
-            movies_batch = [bin_profiles[el] for el in batch]
-            test_batch = np.array(movies_batch).reshape(size,
-                                                        len(all_users) * 5)
+        for batch, test_batch in prepared.test_batches(batch_size):
+            positions = {profile_id: pos for pos, profile_id in enumerate(batch)}
             movie_predictions = revert_expected_value(
                 predict(torch.from_numpy(test_batch).to(rbm.device)).cpu().numpy())
             for movie_id in batch:
@@ -139,7 +94,7 @@ def run(name, dataset, config, all_users, all_movies, tests, initial_v, sep, dev
                 try:
                     for user, rating in test_users:
                         current_movie = movie_predictions[positions[movie_id]]
-                        predicted = current_movie[all_users.index(user)]
+                        predicted = current_movie[prepared.visible_index[user]]
                         rating = float(rating)
                         ratings.append(rating)
                         predictions.append(predicted)
