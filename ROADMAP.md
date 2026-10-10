@@ -201,4 +201,19 @@ Provisional. Fix the training bugs that v1.0 kept on purpose. Make each fix its 
   | Next step | Run tests.test_device on a CUDA host and validate full training accuracy on accelerators. |
 
 - [x] **F13 — Vectorize data preparation.** Profiles and masks are rebuilt every epoch with `list.index()` inside nested loops (`cfrbm/user_based.py:81-92`). Build ID→index dicts and precompute dense or sparse arrays once. Acceptance: identical batches on a fixed seed and a measurable speedup per epoch.
+
+  | Item | Content |
+  | --- | --- |
+  | Status | Done |
+  | Timestamp | 2026-10-10 |
+  | Complexity | M |
+  | Details | Clear parity/speed requirements; estimated and changed seven implementation/test/evidence files across both runners, shared preparation and validation, plus tracking. Precompute dense float32 profiles/masks once with ID maps; epochs slice/gather cached rows. Preserve ordering, duplicate ratings, test-only profile insertion and evaluation skips; consolidation remains F14. |
+  | Commit | `63f66c9adb737cff11547fa7f4de12e7e42424ef` — implements F13 and records parity/timing evidence. |
+  | Validation | 39 tests: 37 passed, 2 unavailable-accelerator skips. MovieLens u1 seed-17 CPU: exact batches over two epochs and exact three-epoch metrics, model and RNG state versus original runners in both orientations. Median preparation per epoch: user 6.747701 → 0.000384 s; item 5.410540 → 0.001736 s. Three-epoch runs: 23.106 → 1.994 s (11.59×) and 18.629 → 3.004 s (6.20×). Source/input hashes, roadmap validator and git diff --check passed; see validation/f13. |
+  | Limitation | Dense host caches use 40 bytes per profile/visible-ID pair: 59.35 MiB user-based and 60.51 MiB item-based on u1, plus construction temporaries and model/batch memory. |
+  | Limitation | Timing evidence covers one host, three preparation samples and one three-epoch CPU run per orientation; accelerator performance and full 100-epoch parity are unverified. Fixed hash seed is still needed for cross-process ID ordering. |
+  | Limitation | Existing unknown-ID evaluation skips, test-only profiles joining training after epoch zero and item-based batch size 10 are intentionally preserved for parity. |
+  | Next step | Add sparse caching with per-batch expansion before applying the runners to datasets whose dense cache exceeds available RAM. |
+  | Next step | Benchmark accelerator execution and verify full 100-epoch parity when those workloads are needed. |
+
 - [x] **F14 — Deduplicate the user- and item-based runners.** `cfrbm/user_based.py` and `cfrbm/item_based.py` are near-identical. Merge them into one runner with an orientation flag, and use the config's `batch_size` everywhere (`item_based` hardcodes 10). Acceptance: both modes run from one module with the same results as before. Depends on F13.
