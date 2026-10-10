@@ -2,8 +2,10 @@
 
 import json
 import sys
+import time
 
 from collections import defaultdict
+from datetime import datetime
 from math import sqrt
 
 import numpy as np
@@ -15,6 +17,18 @@ from .experiments import read_experiment
 from .utils import revert_expected_value, iteration_str
 from .dataset import load_dataset
 from .preparation import PreparedProfiles
+
+
+def log(message):
+    print(f"[{datetime.now().isoformat(sep=' ', timespec='seconds')}] {message}")
+
+
+def synchronize(device):
+    # Accelerator kernels run asynchronously; wait for them before timing.
+    if device.type == 'cuda':
+        torch.cuda.synchronize(device)
+    elif device.type == 'mps':
+        torch.mps.synchronize()
 
 
 def run(name, dataset, config, all_users, all_movies, tests, initial_v, sep,
@@ -41,8 +55,9 @@ def run(name, dataset, config, all_users, all_movies, tests, initial_v, sep,
     config_result['results'] = []
 
     rbm = CFRBM(len(visible_ids) * 5, number_hidden, device=device)
-    print(f"Using device: {rbm.device}")
+    log(f"Using device: {rbm.device}")
 
+    started = time.perf_counter()
     profiles = defaultdict(list)
 
     with open(dataset, 'rt') as data:
@@ -54,7 +69,7 @@ def run(name, dataset, config, all_users, all_movies, tests, initial_v, sep,
     prepared = PreparedProfiles(profiles, visible_ids, tests)
     del profiles
 
-    print("Users and ratings loaded")
+    log(f"Users and ratings loaded in {time.perf_counter() - started:.2f}s")
 
     for j in range(epochs):
         def get_index(col):
@@ -85,12 +100,23 @@ def run(name, dataset, config, all_users, all_movies, tests, initial_v, sep,
                             momentum=momentum)
         predict = rbm.predict()
 
+        synchronize(rbm.device)
+        train_started = time.perf_counter()
+        train_rows = 0
+        train_ratings = 0
         for train_batch, train_masks in prepared.training_batches(j, batch_size):
+            train_rows += len(train_batch)
+            # Each rating is a single one-hot unit, so the batch sum counts them.
+            train_ratings += int(train_batch.sum())
             train(torch.from_numpy(train_batch).to(rbm.device),
                   torch.from_numpy(train_masks).to(rbm.device))
             sys.stdout.write('.')
             sys.stdout.flush()
 
+        synchronize(rbm.device)
+        train_seconds = time.perf_counter() - train_started
+
+        eval_started = time.perf_counter()
         ratings = []
         predictions = []
 
@@ -110,10 +136,11 @@ def run(name, dataset, config, all_users, all_movies, tests, initial_v, sep,
                 except Exception:
                     pass
 
-        vabs = np.vectorize(abs)
+        eval_seconds = time.perf_counter() - eval_started
+
         distances = np.array(ratings) - np.array(predictions)
 
-        mae = vabs(distances).mean()
+        mae = np.abs(distances).mean()
         rmse = sqrt((distances ** 2).mean())
 
         iteration_result = {
@@ -127,7 +154,14 @@ def run(name, dataset, config, all_users, all_movies, tests, initial_v, sep,
 
         config_result['results'].append(iteration_result)
 
-        print(iteration_str.format(j, k, current_l_w, momentum, mae, rmse))
+        print()
+        log(iteration_str.format(j, k, current_l_w, momentum, mae, rmse).lstrip('\n'))
+        train_seconds = max(train_seconds, 1e-9)
+        eval_seconds = max(eval_seconds, 1e-9)
+        log(f"Epoch {j} timing - train {train_seconds:.2f}s "
+            f"({train_rows / train_seconds:,.0f} records/s, "
+            f"{train_ratings / train_seconds:,.0f} ratings/s) - "
+            f"eval {eval_seconds:.2f}s ({len(ratings) / eval_seconds:,.0f} ratings/s)")
 
         with open('{}_{}.json'.format(config_name, name), 'wt') as res_output:
             res_output.write(json.dumps(config_result, indent=4))

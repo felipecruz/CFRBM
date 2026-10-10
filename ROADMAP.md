@@ -224,7 +224,7 @@ Provisional. Fix the training bugs that v1.0 kept on purpose. Make each fix its 
   | Timestamp | 2026-10-10 |
   | Complexity | M |
   | Details | Clear scope; estimated eight code/test/documentation files plus evidence and tracking. One shared runner selects user or item orientation; old module commands and run APIs delegate to it. Both training and evaluation use config batch_size. Resolved parity ambiguity as matching batch sizes: item configurations other than 10 intentionally change behavior. |
-  | Commit | `ff45dd1a77d9794a1beead4dc8ac4dc70bce849c` — implements F14 and records parity evidence. |
+  | Commit | `ff45dd1a77d9794a1beead4dc8ac4dc70bce849c` — implements F14 and records parity evidence.; `c402c4286c9ecb67f659412c13a172e39048e735` |
   | Validation | 42 tests ran: 40 passed, 2 unavailable-accelerator skips. Both shared CLI modes and compatibility entry points pass. Seed-17 MovieLens CPU: exact three-epoch batch, metric, model and RNG parity in both modes at size 10; size 7 matches original user runner and item baseline with only its hardcoded sizes corrected. Sizes 1/4/10/20, short batches, cold profiles and experiment/config dispatch covered. See validation/f14. Roadmap validator, Make dry run and git diff --check passed. |
   | Limitation | Numerical parity covers three CPU epochs; full 100-epoch and accelerator parity were not revalidated. |
   | Limitation | Existing rounded evaluation and unknown-ID skips remain; identical experiment/config names still overwrite the same result file across orientations. |

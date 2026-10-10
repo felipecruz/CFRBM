@@ -31,10 +31,10 @@ def expand(data, k=5):
 
 def revert_expected_value(m, k=5, do_round=True):
     mask = list(range(1, k+1))
-    vround = np.vectorize(round)
 
     if do_round:
-        users = vround((m.reshape(-1, k) * mask).sum(axis=1))
+        # np.round matches Python's round: halves go to the even neighbour.
+        users = np.round((m.reshape(-1, k) * mask).sum(axis=1))
     else:
         users = (m.reshape(-1, k) * mask).sum(axis=1)
 
