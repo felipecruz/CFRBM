@@ -183,6 +183,22 @@ Provisional. Fix the training bugs that v1.0 kept on purpose. Make each fix its 
   | Next step | Repeat corrected-model evaluation across seeds after F12, using a validation split to choose hyperparameters. |
   | Next step | Correct unknown-movie evaluation handling and rerun baseline and corrected models with full test-coverage reporting. |
 
-- [ ] **F12 — Softmax visible units.** Replace the independent Bernoulli sampling of normalized sigmoids with a softmax plus categorical sampling over the 5 rating units, as in the RBM-CF paper. Acceptance: each sampled visible group is exactly one-hot, and before/after RMSE recorded.
-- [ ] **F13 — Vectorize data preparation.** Profiles and masks are rebuilt every epoch with `list.index()` inside nested loops (`cfrbm/user_based.py:81-92`). Build ID→index dicts and precompute dense or sparse arrays once. Acceptance: identical batches on a fixed seed and a measurable speedup per epoch.
-- [ ] **F14 — Deduplicate the user- and item-based runners.** `cfrbm/user_based.py` and `cfrbm/item_based.py` are near-identical. Merge them into one runner with an orientation flag, and use the config's `batch_size` everywhere (`item_based` hardcodes 10). Acceptance: both modes run from one module with the same results as before. Depends on F13.
+- [x] **F12 — Softmax visible units.** Replace the independent Bernoulli sampling of normalized sigmoids with a softmax plus categorical sampling over the 5 rating units, as in the RBM-CF paper. Acceptance: each sampled visible group is exactly one-hot, and before/after RMSE recorded.
+
+  | Item | Content |
+  | --- | --- |
+  | Status | Done |
+  | Timestamp | 2026-10-10 |
+  | Complexity | M |
+  | Details | Clear sampling requirement; estimated and changed six model/reference/test files plus validation tooling, evidence and tracking. Visible logits now use grouped softmax and seeded categorical draws, yielding exactly one-hot rating groups. Resolved comparison ambiguity with F11 as the immediate baseline under the same 100-epoch CPU seed-17 protocol. |
+  | Commit | `10778668ddc378739f38855e84e609e97f79c183` — implements F12 and records its RMSE evidence. |
+  | Validation | Full suite: 34 passed, 2 sandbox accelerator skips. Separate device suite: CPU/MPS passed, CUDA skipped. Reference/parity, 40,000 one-hot groups, categorical frequencies, extreme logits, RNG isolation/replay, CD-2/CD-3 and both CLIs pass. All 100 epochs completed: RMSE 1.082427337 → 1.088789011; MAE 0.817260674 → 0.819982860. Best RMSE 1.085798560 at epoch 99. Log/JSON, inputs, environment and implementation source hashes verified; see validation/f12. Roadmap validator and git diff --check passed. |
+  | Limitation | Final RMSE regressed by 0.006361675 versus F11 and remains above F9's 1.066829754 baseline and 0.95–1.0 target under unchanged hyperparameters. |
+  | Limitation | One CPU seed and sequential comparison on top of F10/F11; other seeds and full accelerator MovieLens accuracy are unverified. CUDA was unavailable. |
+  | Limitation | Existing rounded evaluator scores 19,837 of 20,000 ratings; unknown-movie handling skips 163 ratings. Full paper prediction and missing-rating algorithms remain outside this sampling change. |
+  | Next step | Tune hyperparameters on a validation split and repeat baseline/corrected comparisons across seeds. |
+  | Next step | Correct unknown-movie evaluation handling and rerun both models with full test-coverage reporting. |
+  | Next step | Run tests.test_device on a CUDA host and validate full training accuracy on accelerators. |
+
+- [x] **F13 — Vectorize data preparation.** Profiles and masks are rebuilt every epoch with `list.index()` inside nested loops (`cfrbm/user_based.py:81-92`). Build ID→index dicts and precompute dense or sparse arrays once. Acceptance: identical batches on a fixed seed and a measurable speedup per epoch.
+- [x] **F14 — Deduplicate the user- and item-based runners.** `cfrbm/user_based.py` and `cfrbm/item_based.py` are near-identical. Merge them into one runner with an orientation flag, and use the config's `batch_size` everywhere (`item_based` hardcodes 10). Acceptance: both modes run from one module with the same results as before. Depends on F13.
